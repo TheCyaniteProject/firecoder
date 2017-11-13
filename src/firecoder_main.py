@@ -6,6 +6,7 @@ version = "3.0.0"
 
 # Imports
 import os
+import re
 import sys
 import time
 import base64
@@ -31,13 +32,14 @@ conf3.add_argument("-O", metavar=("OUTPUT"), help="sets the output file", defaul
 conf3.add_argument("-o", help="prints output to console", action="store_true")
 arg.add_argument("--salt", help="add a custom salt to encryption - this will be used in places other than hashing", default=False)
 arg.add_argument("--remove", help="deletes the input file after compleation", action="store_true")
-arg.add_argument("--echo", help="echos debug info including the current password and HASH in plain text", action="store_true")
+arg.add_argument("--echo", help="prints extra info including the current password and HASH in plain text", action="store_true")
+arg.add_argument("--debug", help="enables debug mode: this attemps to backtrack the encrption at each step to make sure decryption is possible", action="store_true")
 arg.add_argument("-p", metavar=("PASSWORD"), help="specify the password for the encryption", default=None)
 args = arg.parse_args()
 
 # Title, Help & Exit if no arguments are passed
 if len(sys.argv)==1:
-	print("===== Cyan's FireCoder v%s =====\n" % version)
+	print("===== Cyan's FireCoder v%s - A Cyanite Project =====\n" % version)
 	arg.print_help()
 	sys.exit(1)
 
@@ -80,12 +82,17 @@ def debug(message="Default text"):
 	if args.echo:
 		print(message)
 
+# Utilities
 def debugexit():
 	print("[!!DEBUG EXIT!!]")
 	sys.exit(2)
 
+def percentage(part, whole): # Used for the loading bars in the debug output
+	return 100 * float(part)/float(whole)
+
 # Link START!!! :D
-print("\n===== Cyan's FireCoder v%s =====\n" % version) # Title echo
+if args.o:
+	print("===== Cyan's FireCoder v%s - A Cyanite Project =====\n" % version) # Title echo
 
 # Debug mode?
 debug(">> Debug ON <<\nOutput:")
@@ -104,52 +111,65 @@ debug(">Password: %s\n>Salt: %s\n>HASH: %s" % (args.p,args.salt,psa)) # Print De
 
 # This is for the dictionary generators
 debug(">Loading generation variables..") # Print Debug info
-l = string.digits+string.ascii_letters+string.punctuation.replace('"','').replace("'",'').replace("[",'').replace("]",'').replace("{",'').replace("}",'').replace("(",'').replace(")",'')
-l2 = [i for i in string.printable]
+l = (string.digits +
+	string.ascii_letters +
+	string.punctuation.replace('"','')
+		.replace("'",'')
+		.replace("[",'')
+		.replace("]",'')
+		.replace("{",'')
+		.replace("}",'')
+		.replace("(",'')
+		.replace(")",''))
+l2 = [i for i in l]
 
 debug(">Done.") # Print Debug info
 
+
+# Modifiers
+def replace_all(string, dic):
+	return ''.join(dic.get(char, char) for char in string)
+
+'''
 def replace_all(n,t,d):
-		if n == 0:
-			t = ''.join(d[s] if s in d else s for s in t)
-		elif n == 1:
-			t=[t[i:i+2] for i in range(0, len(t), 2)]
-			t = ''.join(d[s] if s in d else s for s in t)
+	if n == 0:
+		t = ''.join(d[s] if s in d else s for s in t)
+	elif n == 1:
+		t=[t[i:i+2] for i in range(0, len(t), 2)]
+		t = ''.join(d[s] if s in d else s for s in t)
+	else:
+		sys.exit(2) # Exit with major error
+	return t
+'''
+
+def gen_keys(char,HASH,mode=True):
+	r.seed(hashlib.sha1((char+HASH).encode()).hexdigest())
+	m,d = [],{}
+	for i in l:
+		c = r.choice(l)
+		while c in m:
+			c = r.choice(l)
+		m.append(c)
+		if mode:
+			d[i] = c
 		else:
-			sys.exit(2) # Exit with major error
-		return t
-
-def seed_en2(char,HASH): # For swopping around the codes
-	r.seed(hashlib.sha1((char+HASH).encode()).hexdigest())
-	m,d = [],{}
-	for i in l:
-		c = r.choice(l)
-		while c in m:
-			c = r.choice(l)
-		m.append(c)
-		d[i] = c
+			d[c] = i
 	return d
 
-def seed_de2(char,HASH): # For swopping back around the codes
-	r.seed(hashlib.sha1((char+HASH).encode()).hexdigest())
-	m,d = [],{}
-	for i in l:
-		c = r.choice(l)
-		while c in m:
-			c = r.choice(l)
-		m.append(c)
-		d[c] = i
-	return d
+def seed_en(char,HASH): # For swopping around the codes
+	return gen_keys(char,HASH,True)
 
-def scram_en(msg):
-		l = list(msg)
+def seed_de(char,HASH): # For swopping back around the codes
+	return gen_keys(char,HASH,False)
+
+def scram_en(string):
+		l = list(string)
 		r.seed(hashlib.sha1(psa.encode()).hexdigest())
 		r.shuffle(l)
 		return ''.join(l)
 
-
-def scram_de(msg):
-	l = list(msg)
+def scram_de(string):
+	l = list(string)
 	l2 = list(range(len(l)))
 	r.seed(hashlib.sha1(psa.encode()).hexdigest())
 	r.shuffle(l2)
@@ -158,132 +178,184 @@ def scram_de(msg):
 		l3[originalIndex] = l[index]
 	return ''.join(l3)
 
-def percentage(part, whole): # Used for the loading bars in the debug output
-	return 100 * float(part)/float(whole)
+def simpleStringReverse(string):
+	return string[::-1]
 
+def fireEncode(string):
+	string = base64.b64encode(string.encode('utf-16'))
+	return string.decode('utf-8')
 
+def fireDecode(string):
+	string = base64.b64decode(string)
+	return str(string.decode('utf-16'))
 
+# Read file
 if not args.I == None:
 	debug(">Reading input file..") # Print Debug info
 	with open(args.I, "rb") as f:
-		f1 = "".join(map(chr, f.read()))
+		inputstring = "".join(map(chr, f.read()))
 	debug(">Opened file '%s'" % (args.I)) # Print Debug info
-else: f1 = args.i
+else: inputstring = args.i
+
+# Debug
+f1 = inputstring
+
+
 
 #Encoding stuffs
-if args.e:
-	
-	debug(">Converting characters to Unicode bytes..") # Print Debug info
-	f2 = base64.b64encode(f1.encode('utf-16')) # marker
-	f2 = f2.decode('utf-8')
 
-	debug(">Adding our special sauce..")
-	f3 = scram_en(f2)
-	f3 = scram_en(f3)
-	f3 = scram_en(f3)
+def magicEncodingTrick(string, hashcode, mode=True):
 	if args.echo:
 		run = 0
-		debug(">Doing a magic trick.. 1/3")
-	for i in ppw1:
+	if mode:
+		hashlist = hashcode
+	else:
+		hashlist = hashcode[::-1]
+	for i in hashlist:
 		if args.echo: # Print Debug info
 			run+=1
-			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(ppw1)))
+			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(hashcode)))
 			sys.stdout.flush()
-		f4 = replace_all(0,f3, seed_en2(i,ppw1)) # Changes characters in the codes using a seed
+		if mode:
+			string = replace_all(string, seed_en(i,hashcode)) # Changes characters in the codes using a seed
+		else:
+			string = replace_all(string, seed_de(i,hashcode)) # unChanges characters in the codes using a seed
 	if args.echo: # Print Debug info
-		sys.stdout.write("\r>Working [DONE]")
+		sys.stdout.write("\r>Working [DONE]\n")
 		sys.stdout.flush()
 		run = 0
-		debug("\n>Moving things around.. 1/2")
-	f5 = f4
-	f5 = scram_en(f5)
+	return string
+
+def moveThingsAround(string, mode=True):
+	if mode:
+		return scram_en(scram_en(string))
+	else:
+		return scram_de(scram_de(string))
+
+def printdebug(value):
+	if value:
+		print("DEBUG: PASS")
+	else:
+		print("DEBUG: FAIL")
+
+if args.e:
+
+	debug(">Converting characters to Unicode bytes..") # Print Debug info
+	encodedString = fireEncode(inputstring) # Strint > Encode
+
+	if args.debug: # attemps to backtrack
+		backtrack = fireDecode(encodedString)
+		printdebug((backtrack == inputstring))
+	
+	debug(">Adding our special sauce..") # Print Debug info
+	sauced1 = moveThingsAround(encodedString) # scram_en() x 2 (each one calls a seeded random.shuffle())
+	sauced2 = scram_en(sauced1) # Seeded random.shuffle()
+
+	if args.debug: # attemps to backtrack
+		backtrack = moveThingsAround(sauced2, False)
+		backtrack = scram_de(backtrack)
+		printdebug((backtrack == encodedString))
+
+	debug(">Doing a magic trick.. 1/3") # Print Debug info
+	magicString1 = magicEncodingTrick(sauced2, ppw1) # For i in hashcode (ppw1 in this case), change every letter in the source with a generated one with "i" as the seed
+
+	if args.debug: # attemps to backtrack
+		backtrack = magicEncodingTrick(magicString1, ppw1, False)
+		printdebug((backtrack == sauced2))
+
+	debug(">Moving things around.. 1/2") # Print Debug info
+	mixed1 = scram_en(magicString1) # Seeded random.shuffle()
+
+	if args.debug: # attemps to backtrack
+		backtrack = scram_de(mixed1)
+		printdebug((backtrack == magicString1))
+
 	debug(">Doing a magic trick.. 2/3") # Print Debug info
-	for i in psa:
-		if args.echo: # Print Debug info
-			run+=1
-			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(psa)))
-			sys.stdout.flush()
-		f6 = replace_all(0,f5, seed_en2(i,psa)) # Changes characters in the codes using a seed
-	if args.echo: # Print Debug info
-		sys.stdout.write("\r>Working [DONE]")
-		sys.stdout.flush()
-		run = 0
-		debug("\n>Moving things around.. 2/2")
-	f7 = f6[::-1]
-	f8 = f7
-	f8 = scram_en(f8)
+	magicString2 = magicEncodingTrick(mixed1, psa) # For i in hashcode (psa in this case), change every letter in the source with a generated one with "i" as the seed
+
+	if args.debug: # attemps to backtrack
+		backtrack = magicEncodingTrick(magicString2, psa, False)
+		printdebug((backtrack == mixed1))
+
+	debug(">Moving things around.. 2/2") # Print Debug info
+	backwardsMagic = simpleStringReverse(magicString2) # "Reverses the source" | "ecruos eht sesreveR"
+	mixed2 = scram_en(backwardsMagic) # Seeded random.shuffle()
+
+	if args.debug: # attemps to backtrack
+		backtrack = scram_de(mixed2) # Seeded random.shuffle()
+		backtrack = simpleStringReverse(backtrack) # "Reverses the source" | "ecruos eht sesreveR"
+		printdebug((backtrack == magicString2))
+
 	debug(">Doing a magic trick.. 3/3") # Print Debug info
-	for i in ppw2:
-		if args.echo: # Print Debug info
-			run+=1
-			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(ppw2)))
-			sys.stdout.flush()
-		f1_fin = replace_all(0,f8, seed_en2(i,ppw2)) # Changes characters in the codes using a seed
-	if args.echo: # Print Debug info
-		sys.stdout.write("\r>Working [DONE]")
-		sys.stdout.flush()
-		run = 0
-		debug("\n>Done with edit.")
+	f1_fin = magicEncodingTrick(mixed2, ppw2) # For i in hashcode (ppw2 in this case), change every letter in the source with a generated one with "i" as the seed
+
+	if args.debug: # attemps to backtrack
+		backtrack = magicEncodingTrick(f1_fin, ppw2, False)
+		printdebug((backtrack == mixed2))
+
+	debug(">Done with edit.") # Print Debug info
 
 #Decoding stuffs
-if args.d:
+elif args.d:
+
 	debug(">Checking for bad characters..") # Print Debug info
-	f1 = f1.split('\n', 1)[0] # Splits decription input lines to allow comments
-	f2 = ''.join(char if char in l else '' for char in f1)
-	if args.echo: # Print Debug info
-		run = 0
-		debug(">Doing a magic trick.. 1/3")
-	for i in ppw2:
-		if args.echo: # Print Debug info
-			run+=1
-			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(ppw2)))
-			sys.stdout.flush()
-		f3 = replace_all(0,f2, seed_de2(i,ppw2)) # unChanges characters in the codes using a seed
-	if args.echo: # Print Debug info
-		sys.stdout.write("\r>Working [DONE]")
-		sys.stdout.flush()
-		run = 0
-		debug("\n>Moving things around.. 1/2")
-	f3 = scram_de(f3)
-	f4 = f3
-	f5 = f4[::-1]
+	splitInput = inputstring.split('\n', 1)[0] # Splits decription input lines to allow comments
+	cleanString = ''.join(char if char in l else '' for char in splitInput) # Removed illegal characters. Not that it maters, because such charaters would mean a currupted string.
+	
+	debug(">Doing a magic trick.. 1/3")
+	magicString1 = magicEncodingTrick(cleanString, ppw2, False) # For i in hashcode (ppw2 in this case), change every letter in the source back from the generated one with "i" as the seed
+
+	if args.debug: # attemps to backtrack
+		backtrack = magicEncodingTrick(magicString1, ppw2)
+		printdebug((backtrack == cleanString))
+
+	debug(">Moving things around.. 1/2")
+	mixed1 = scram_de(magicString1) # Seeded reversal of random.shuffle()
+	demixified = simpleStringReverse(mixed1) # "Reverses the source" | "ecruos eht sesreveR"
+
+	if args.debug: # attemps to backtrack
+		backtrack = simpleStringReverse(demixified)
+		backtrack = scram_en(backtrack)
+		printdebug((backtrack == magicString1))
+
 	debug(">Doing a magic trick.. 2/3") # Print Debug info
-	for i in psa:
-		if args.echo: # Print Debug info
-			run+=1
-			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(psa)))
-			sys.stdout.flush()
-		f6 = replace_all(0,f5, seed_de2(i,psa)) # unChanges characters in the codes using a seed
-	if args.echo: # Print Debug info
-		sys.stdout.write("\r>Working [DONE]")
-		sys.stdout.flush()
-		run = 0
-		debug("\n>Moving things around.. 2/2")
-	f6 = scram_de(f6)
-	f7 = f6
+	magicString2 = magicEncodingTrick(demixified, psa, False) # For i in hashcode (psa in this case), change every letter in the source back from the generated one with "i" as the seed
+
+	if args.debug: # attemps to backtrack
+		backtrack = magicEncodingTrick(magicString2, psa)
+		printdebug((backtrack == demixified))
+
+	debug(">Moving things around.. 2/2")
+	mixed2 = scram_de(magicString2) # Seeded reversal of random.shuffle()
+
+	if args.debug: # attemps to backtrack
+		backtrack = scram_en(mixed2)
+		printdebug((backtrack == magicString2))
+
 	debug(">Doing a magic trick.. 3/3") # Print Debug info
-	for i in ppw1:
-		if args.echo: # Print Debug info
-			run+=1
-			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(ppw1)))
-			sys.stdout.flush()
-		f8 = replace_all(0,f7, seed_de2(i,ppw1)) # unChanges characters in the codes using a seed
+	magicString3 = magicEncodingTrick(mixed2, ppw1, False) # For i in hashcode (ppw1 in this case), change every letter in the source back from the generated one with "i" as the seed
 
-	debug("\nRemoving our special sauce..")
-	f8 = scram_de(f8)
-	f8 = scram_de(f8)
-	f8 = scram_de(f8)
+	if args.debug: # attemps to backtrack
+		backtrack = magicEncodingTrick(magicString3, ppw1)
+		printdebug((backtrack == mixed2))
 
-	debug("Converting Unicode bytes to characters..")
-	f9 = base64.b64decode(f8)
-	f10 = str(f9.decode('utf-16'))
-	f1_fin = f10
+	debug(">Removing our special sauce..")
+	desauced1 = moveThingsAround(magicString3, False) # scram_de() x 2 (each one calls a seeded reversal of random.shuffle())
+	desauced2 = scram_de(desauced1) # Seeded reversal of random.shuffle()
+	
+	if args.debug: # attemps to backtrack
+		backtrack = scram_en(desauced2)
+		backtrack = moveThingsAround(backtrack)
+		printdebug((backtrack == magicString3))
 
-	if args.echo: # Print Debug info
-		sys.stdout.write("\r>Working [DONE]")
-		sys.stdout.flush()
-		run = 0
-		debug("\n>Done with edit.") # marker
+	debug(">Converting Unicode bytes to characters..")
+	f1_fin = fireDecode(desauced2)
+
+	if args.debug: # attemps to backtrack
+		backtrack = fireEncode(f1_fin)
+		printdebug((backtrack == desauced2))
+
+	debug(">Done with edit.")
 
 # Checks output
 e = ".cfc"
@@ -332,5 +404,5 @@ if args.remove:
 
 	os.remove(args.I)
 
-if not args.o == False:
+if args.o:
 	print("[--output--]\n%s\n[--output--]" % (f1_fin))
