@@ -226,11 +226,60 @@ def magicEncodingTrick(string, hashcode, mode=True):
 		run = 0
 	return string
 
-def moveThingsAround(string, mode=True):
+def mcc_util(n,HASH,mode=True):
+	pps = args.salt+HASH
+	ps = hashlib.md5(pps.encode())
+	s = ps.hexdigest()
+	r.seed(s)
+	m,d,L = [],{},[]
+	for s in range(n):
+		for i in l:
+			c = r.choice(l)
+			while c in m:
+				c = r.choice(l)
+			m.append(c)
+			if mode:
+				d[i] = c
+			else:
+				d[c] = i
+		L.append(d)
+		m,d = [],{}
+	return L
+
+# shiL should be lower than shiH - prime numbers only. (the higher the better)
+shiL = 7
+shiH = 11
+endicnum1,endicnum2 = mcc_util(shiL,psa),mcc_util(shiH,psa)
+dedicnum1,dedicnum2 = mcc_util(shiL,psa,False),mcc_util(shiH,psa,False)
+
+# This is slow, but very effective!
+def magicCharacterChanger(string, HASH, mode=True):
 	if mode:
-		return scram_en(scram_en(string))
+		mcc = ''.join(endicnum1[i%shiL][c] for i,c in enumerate(string))
+		return ''.join(endicnum2[i%shiH][c] for i,c in enumerate(mcc))
 	else:
-		return scram_de(scram_de(string))
+		mcc = ''.join(dedicnum2[i%shiH][c] for i,c in enumerate(string))
+		return ''.join(dedicnum1[i%shiL][c] for i,c in enumerate(mcc))
+ 
+def seed_shiftd(n,HASH): # For reversing character change
+  pps = args.salt+HASH
+  ps = hashlib.md5(pps.encode())
+  s = ps.hexdigest()
+  r.seed(s)
+  m,d,L = [],{},[]
+  for s in range(n):
+    for i in l:
+      c = r.choice(l)
+      while c in m:
+        c = r.choice(l)
+      m.append(c)
+      d[c] = i
+
+
+
+
+def moveThingsAround(string, mode=True):
+	return magicCharacterChanger(string, psa, mode)
 
 def printdebug(value):
 	if value:
@@ -244,6 +293,7 @@ if args.e:
 	encodedString = fireEncode(inputstring) # Strint > Encode
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 1..")
 		backtrack = fireDecode(encodedString)
 		printdebug((backtrack == inputstring))
 	
@@ -252,14 +302,16 @@ if args.e:
 	sauced2 = scram_en(sauced1) # Seeded random.shuffle()
 
 	if args.debug: # attemps to backtrack
-		backtrack = moveThingsAround(sauced2, False)
-		backtrack = scram_de(backtrack)
+		print("Debugging 2..")
+		backtrack = scram_de(sauced2)
+		backtrack = moveThingsAround(backtrack, False)
 		printdebug((backtrack == encodedString))
 
 	debug(">Doing a magic trick.. 1/3") # Print Debug info
 	magicString1 = magicEncodingTrick(sauced2, ppw1) # For i in hashcode (ppw1 in this case), change every letter in the source with a generated one with "i" as the seed
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 3..")
 		backtrack = magicEncodingTrick(magicString1, ppw1, False)
 		printdebug((backtrack == sauced2))
 
@@ -267,6 +319,7 @@ if args.e:
 	mixed1 = scram_en(magicString1) # Seeded random.shuffle()
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 4..")
 		backtrack = scram_de(mixed1)
 		printdebug((backtrack == magicString1))
 
@@ -274,6 +327,7 @@ if args.e:
 	magicString2 = magicEncodingTrick(mixed1, psa) # For i in hashcode (psa in this case), change every letter in the source with a generated one with "i" as the seed
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 5..")
 		backtrack = magicEncodingTrick(magicString2, psa, False)
 		printdebug((backtrack == mixed1))
 
@@ -282,6 +336,7 @@ if args.e:
 	mixed2 = scram_en(backwardsMagic) # Seeded random.shuffle()
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 6..")
 		backtrack = scram_de(mixed2) # Seeded random.shuffle()
 		backtrack = simpleStringReverse(backtrack) # "Reverses the source" | "ecruos eht sesreveR"
 		printdebug((backtrack == magicString2))
@@ -290,6 +345,7 @@ if args.e:
 	f1_fin = magicEncodingTrick(mixed2, ppw2) # For i in hashcode (ppw2 in this case), change every letter in the source with a generated one with "i" as the seed
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 7..")
 		backtrack = magicEncodingTrick(f1_fin, ppw2, False)
 		printdebug((backtrack == mixed2))
 
@@ -306,6 +362,7 @@ elif args.d:
 	magicString1 = magicEncodingTrick(cleanString, ppw2, False) # For i in hashcode (ppw2 in this case), change every letter in the source back from the generated one with "i" as the seed
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 1..")
 		backtrack = magicEncodingTrick(magicString1, ppw2)
 		printdebug((backtrack == cleanString))
 
@@ -314,6 +371,7 @@ elif args.d:
 	demixified = simpleStringReverse(mixed1) # "Reverses the source" | "ecruos eht sesreveR"
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 2..")
 		backtrack = simpleStringReverse(demixified)
 		backtrack = scram_en(backtrack)
 		printdebug((backtrack == magicString1))
@@ -322,6 +380,7 @@ elif args.d:
 	magicString2 = magicEncodingTrick(demixified, psa, False) # For i in hashcode (psa in this case), change every letter in the source back from the generated one with "i" as the seed
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 3..")
 		backtrack = magicEncodingTrick(magicString2, psa)
 		printdebug((backtrack == demixified))
 
@@ -329,6 +388,7 @@ elif args.d:
 	mixed2 = scram_de(magicString2) # Seeded reversal of random.shuffle()
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 4..")
 		backtrack = scram_en(mixed2)
 		printdebug((backtrack == magicString2))
 
@@ -336,22 +396,25 @@ elif args.d:
 	magicString3 = magicEncodingTrick(mixed2, ppw1, False) # For i in hashcode (ppw1 in this case), change every letter in the source back from the generated one with "i" as the seed
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 5..")
 		backtrack = magicEncodingTrick(magicString3, ppw1)
 		printdebug((backtrack == mixed2))
 
 	debug(">Removing our special sauce..")
-	desauced1 = moveThingsAround(magicString3, False) # scram_de() x 2 (each one calls a seeded reversal of random.shuffle())
-	desauced2 = scram_de(desauced1) # Seeded reversal of random.shuffle()
+	desauced1 = scram_de(magicString3) # Seeded reversal of random.shuffle()
+	desauced2 = moveThingsAround(desauced1, False) # scram_de() x 2 (each one calls a seeded reversal of random.shuffle())
 	
 	if args.debug: # attemps to backtrack
-		backtrack = scram_en(desauced2)
-		backtrack = moveThingsAround(backtrack)
+		print("Debugging 6..")
+		backtrack = moveThingsAround(desauced2)
+		backtrack = scram_en(backtrack)
 		printdebug((backtrack == magicString3))
 
 	debug(">Converting Unicode bytes to characters..")
 	f1_fin = fireDecode(desauced2)
 
 	if args.debug: # attemps to backtrack
+		print("Debugging 7..")
 		backtrack = fireEncode(f1_fin)
 		printdebug((backtrack == desauced2))
 
