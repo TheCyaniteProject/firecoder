@@ -2,7 +2,10 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "3.0.0"
+version = "4.0.0"
+
+default_sequence = "?!*/~*/~*!/*"
+legal_seq_chars  = "?!*/~"
 
 # Imports
 import os
@@ -17,30 +20,68 @@ import argparse
 
 # Variables
 r = random.Random()
-start =time.time()
+start = time.time()
+errorflag = False
+
+seq_help = '''	Sequence help. This is a list of all flags and what they do.
+	(Non-Sequence Characters will raise an error)
+
+	Sequence example: %s  # This is our default sequence, we highly
+	recommend you use a custom one.
+
+	?	Wheither or not to enable Unicode support. Causes a potential
+		vulnerability in that incorrect decryption raises an Error
+		(makes brute-forcing slightly easier)
+		If used, this character must start the Sequence and may only be
+		used once.
+
+	!	Triggers our magicCharacterChanger() function which changes each
+		character based off of it's position. This this is very effective,
+		as it doesn't mix characters, but generates dictonaries for them.
+		Because of this, this proccess can be very slow, especially with
+		long sources.
+
+	*	Triggers our magicEggScrambler() function which simply mixes up all
+		existing characters in the source. 
+
+	/	Triggers our magicEncodingTrick() function which changes the whole
+		source for every character in the HASH.
+
+	~	Triggers our simpleStringReverse() function which simply reverses
+		the source. We recommend using this at least once and as many times
+		as you can, as it adds very little overhead.
+''' % default_sequence
+
 
 # Command line stuffs
 arg = argparse.ArgumentParser(description="Encodes/Decodes messages and files - requires [-I | -i] [-e | -d] [-p PASSWORD]")
 conf = arg.add_mutually_exclusive_group()
 conf2 = arg.add_mutually_exclusive_group()
 conf3 = arg.add_mutually_exclusive_group()
-conf2.add_argument("-I",  metavar=("FILENAME"), help="specify the file to encrypt", default=None)
-conf2.add_argument("-i",  metavar=("MESSAGE"), help="specify the message to encrypt", default=None)
-conf.add_argument("-e", help="specify use encode mode", action="store_true")
-conf.add_argument("-d", help="specify use decode mode", action="store_true")
-conf3.add_argument("-O", metavar=("OUTPUT"), help="sets the output file", default=None)
+conf.add_argument("-I",  metavar=("FILENAME"), help="specify the file to encrypt", default=None)
+conf.add_argument("-i",  metavar=("MESSAGE"), help="specify the message to encrypt", default=None)
+conf2.add_argument("-e", help="specify use encode mode", action="store_true")
+conf2.add_argument("-d", help="specify use decode mode", action="store_true")
 conf3.add_argument("-o", help="prints output to console", action="store_true")
+conf3.add_argument("-O", metavar=("OUTPUT"), help="sets the output file", default=None)
+arg.add_argument("-p", metavar=("PASSWORD"), help="specify the password for the encryption", default=None)
 arg.add_argument("--salt", help="add a custom salt to encryption - this will be used in places other than hashing", default=False)
-arg.add_argument("--remove", help="deletes the input file after compleation", action="store_true")
+arg.add_argument("--seq", metavar=("SEQUENCE"), help="set a custom encryption sequence - pass: '--seqhelp' for more info - default sequence: %s" % default_sequence, default=default_sequence)
+arg.add_argument("--seqhelp", help="prints help related to how sequences work, and what each character does, and then exits", action="store_true")
 arg.add_argument("--echo", help="prints extra info including the current password and HASH in plain text", action="store_true")
 arg.add_argument("--debug", help="enables debug mode: this attemps to backtrack the encrption at each step to make sure decryption is possible", action="store_true")
-arg.add_argument("-p", metavar=("PASSWORD"), help="specify the password for the encryption", default=None)
+arg.add_argument("--remove", help="deletes the input file after compleation", action="store_true")
 args = arg.parse_args()
 
 # Title, Help & Exit if no arguments are passed
 if len(sys.argv)==1:
 	print("===== Cyan's FireCoder v%s - A Cyanite Project =====\n" % version)
 	arg.print_help()
+	sys.exit(1)
+
+if args.seqhelp:
+	print("===== Cyan's FireCoder v%s - A Cyanite Project =====\n" % version)
+	print(seq_help)
 	sys.exit(1)
 
 
@@ -53,7 +94,7 @@ def argumentChecker():
 		sys.exit(1) #Exit with minor error
 
 	# Sets Salt to reverse-Password if empty.
-	if args.salt == False:
+	if not args.salt:
 		args.salt = args.p[::-1]
 
 	# Check if input was provided
@@ -83,6 +124,10 @@ def debug(message="Default text"):
 		print(message)
 
 # Utilities
+def setErrorFlag(flag=True):
+	global errorflag
+	errorflag = flag
+
 def debugexit():
 	print("[!!DEBUG EXIT!!]")
 	sys.exit(2)
@@ -127,20 +172,11 @@ debug(">Done.") # Print Debug info
 
 
 # Modifiers
+
 def replace_all(string, dic):
 	return ''.join(dic.get(char, char) for char in string)
 
-'''
-def replace_all(n,t,d):
-	if n == 0:
-		t = ''.join(d[s] if s in d else s for s in t)
-	elif n == 1:
-		t=[t[i:i+2] for i in range(0, len(t), 2)]
-		t = ''.join(d[s] if s in d else s for s in t)
-	else:
-		sys.exit(2) # Exit with major error
-	return t
-'''
+
 
 def gen_keys(char,HASH,mode=True):
 	r.seed(hashlib.sha1((char+HASH).encode()).hexdigest())
@@ -156,11 +192,33 @@ def gen_keys(char,HASH,mode=True):
 			d[c] = i
 	return d
 
+def gen_codes(char,HASH,mode=True): # For turing the codes back into the original entry
+	pps = char+HASH
+	ps = hashlib.md5(pps.encode())
+	s = ps.hexdigest()
+	r.seed(s)
+	m,d = [],{}
+	for i in l2:
+		c = r.choice(l)+r.choice(l)
+		while c in m:
+			c = r.choice(l)+r.choice(l)
+		m.append(c)
+		if mode:
+			d[i] = c
+		else:
+			d[c] = i
+	return d
+
 def seed_en(char,HASH): # For swopping around the codes
 	return gen_keys(char,HASH,True)
 
 def seed_de(char,HASH): # For swopping back around the codes
 	return gen_keys(char,HASH,False)
+
+def magicEggScrambler(string, mode=True): # sequence character: *
+	if mode:
+		return scram_en(string)
+	return scram_de(string)
 
 def scram_en(string):
 		l = list(string)
@@ -178,16 +236,34 @@ def scram_de(string):
 		l3[originalIndex] = l[index]
 	return ''.join(l3)
 
-def simpleStringReverse(string):
+def simpleStringReverse(string): # sequence character: ~
 	return string[::-1]
+
+def StringStripper(string, mode=True):
+	if args.e:
+		string = ''.join(char if char in l else '?' for char in string) # Replaces all unknown characters with: ?
+	return replace_all(string, gen_codes("l", psa, mode))
+
+
+def fireCoderMethod(string, mode=True): # sequence character: ?
+	if mode:
+		return fireEncode(string)
+	return fireDecode(string)
 
 def fireEncode(string):
 	string = base64.b64encode(string.encode('utf-16'))
 	return string.decode('utf-8')
 
 def fireDecode(string):
-	string = base64.b64decode(string)
-	return str(string.decode('utf-16'))
+	try:
+		string = base64.b64decode(string)
+		string = str(string.decode('utf-16'))
+	except:
+		print('''Error: could not decode source as base64. Please check your Password, Salt, and Sequence, and try again.
+If this problem persists, please file an issue: https://github.com/TheCyaniteProject/firecoder/issues''')
+		#sys.exit(2) # Exit with major error
+		setErrorFlag(True)
+	return string
 
 # Read file
 if not args.I == None:
@@ -204,22 +280,22 @@ f1 = inputstring
 
 #Encoding stuffs
 
-def magicEncodingTrick(string, hashcode, mode=True):
+def magicEncodingTrick(string, HASH, mode=True): # sequence character: /
 	if args.echo:
 		run = 0
 	if mode:
-		hashlist = hashcode
+		hashlist = HASH
 	else:
-		hashlist = hashcode[::-1]
+		hashlist = HASH[::-1]
 	for i in hashlist:
 		if args.echo: # Print Debug info
 			run+=1
-			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(hashcode)))
+			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(HASH)))
 			sys.stdout.flush()
 		if mode:
-			string = replace_all(string, seed_en(i,hashcode)) # Changes characters in the codes using a seed
+			string = replace_all(string, seed_en(i,HASH)) # Changes characters in the codes using a seed
 		else:
-			string = replace_all(string, seed_de(i,hashcode)) # unChanges characters in the codes using a seed
+			string = replace_all(string, seed_de(i,HASH)) # unChanges characters in the codes using a seed
 	if args.echo: # Print Debug info
 		sys.stdout.write("\r>Working [DONE]\n")
 		sys.stdout.flush()
@@ -253,32 +329,16 @@ endicnum1,endicnum2 = mcc_util(shiL,psa),mcc_util(shiH,psa)
 dedicnum1,dedicnum2 = mcc_util(shiL,psa,False),mcc_util(shiH,psa,False)
 
 # This is slow, but very effective!
-def magicCharacterChanger(string, HASH, mode=True):
+def magicCharacterChanger(string, HASH, mode=True): # sequence character: !
 	if mode:
 		mcc = ''.join(endicnum1[i%shiL][c] for i,c in enumerate(string))
 		return ''.join(endicnum2[i%shiH][c] for i,c in enumerate(mcc))
 	else:
 		mcc = ''.join(dedicnum2[i%shiH][c] for i,c in enumerate(string))
 		return ''.join(dedicnum1[i%shiL][c] for i,c in enumerate(mcc))
- 
-def seed_shiftd(n,HASH): # For reversing character change
-  pps = args.salt+HASH
-  ps = hashlib.md5(pps.encode())
-  s = ps.hexdigest()
-  r.seed(s)
-  m,d,L = [],{},[]
-  for s in range(n):
-    for i in l:
-      c = r.choice(l)
-      while c in m:
-        c = r.choice(l)
-      m.append(c)
-      d[c] = i
 
 
-
-
-def moveThingsAround(string, mode=True):
+def moveThingsAround(string, mode=True): # sequence character: !
 	return magicCharacterChanger(string, psa, mode)
 
 def printdebug(value):
@@ -287,138 +347,78 @@ def printdebug(value):
 	else:
 		print("DEBUG: FAIL")
 
-if args.e:
+# Main Process
 
-	debug(">Converting characters to Unicode bytes..") # Print Debug info
-	encodedString = fireEncode(inputstring) # Strint > Encode
+source = inputstring
 
-	if args.debug: # attemps to backtrack
-		print("Debugging 1..")
-		backtrack = fireDecode(encodedString)
-		printdebug((backtrack == inputstring))
-	
-	debug(">Adding our special sauce..") # Print Debug info
-	sauced1 = moveThingsAround(encodedString) # scram_en() x 2 (each one calls a seeded random.shuffle())
-	sauced2 = scram_en(sauced1) # Seeded random.shuffle()
 
-	if args.debug: # attemps to backtrack
-		print("Debugging 2..")
-		backtrack = scram_de(sauced2)
-		backtrack = moveThingsAround(backtrack, False)
-		printdebug((backtrack == encodedString))
+# Initial pass, check formatting.
+pos = 1
+for char in args.seq:
+	if char not in legal_seq_chars:
+		print('Error: illegal sequence character: "%s" in position: %i' % (char, pos))
+		sys.exit(2)
+	pos += 1
+if "?" in args.seq:
+	if args.seq.count("?") > 1:
+		print('Error: illegal sequence action: "?" can only be used once')
+		sys.exit(2)
+	elif not args.seq.startswith("?"):
+		print('Error: illegal sequence action: "?" must be the first character of the sequence')
+		sys.exit(2)
+else:
+	if args.e:
+		source = StringStripper(source, True)
 
-	debug(">Doing a magic trick.. 1/3") # Print Debug info
-	magicString1 = magicEncodingTrick(sauced2, ppw1) # For i in hashcode (ppw1 in this case), change every letter in the source with a generated one with "i" as the seed
+# start with: inputstring
 
-	if args.debug: # attemps to backtrack
-		print("Debugging 3..")
-		backtrack = magicEncodingTrick(magicString1, ppw1, False)
-		printdebug((backtrack == sauced2))
+# Sequence Processing
 
-	debug(">Moving things around.. 1/2") # Print Debug info
-	mixed1 = scram_en(magicString1) # Seeded random.shuffle()
+if args.d:
+	args.seq = simpleStringReverse(args.seq)
 
-	if args.debug: # attemps to backtrack
-		print("Debugging 4..")
-		backtrack = scram_de(mixed1)
-		printdebug((backtrack == magicString1))
+pos = 1
+if args.d:
+	pos = len(args.seq)
+for char in args.seq:
+	if args.e:
+		if char == "?":
+			source = fireCoderMethod(source, True)
+		elif char == "!":
+			source = magicCharacterChanger(source, ppw1+str(pos), True)
+		elif char == "*":
+			source = magicEggScrambler(source, True)
+		elif char == "/":
+			source = magicEncodingTrick(source, str(pos)+ppw2, True)
+		elif char == "~":
+			source = simpleStringReverse(source)
+		pos += 1
+	elif args.d:
+		if char == "?":
+			source = fireCoderMethod(source, False)
+		elif char == "!":
+			source = magicCharacterChanger(source, ppw1+str(pos), False)
+		elif char == "*":
+			source = magicEggScrambler(source, False)
+		elif char == "/":
+			source = magicEncodingTrick(source, str(pos)+ppw2, False)
+		elif char == "~":
+			source = simpleStringReverse(source)
+		pos -= 1
+	else:
+		print('Error: critical unknown error while parsing sequence: "%s" please file an issue!! https://github.com/TheCyaniteProject/firecoder/issues' % args.seq)
 
-	debug(">Doing a magic trick.. 2/3") # Print Debug info
-	magicString2 = magicEncodingTrick(mixed1, psa) # For i in hashcode (psa in this case), change every letter in the source with a generated one with "i" as the seed
+if args.d:
+	if not "?" in args.seq:
+		source = StringStripper(source, False)
 
-	if args.debug: # attemps to backtrack
-		print("Debugging 5..")
-		backtrack = magicEncodingTrick(magicString2, psa, False)
-		printdebug((backtrack == mixed1))
+debug(">Done with edit.")
 
-	debug(">Moving things around.. 2/2") # Print Debug info
-	backwardsMagic = simpleStringReverse(magicString2) # "Reverses the source" | "ecruos eht sesreveR"
-	mixed2 = scram_en(backwardsMagic) # Seeded random.shuffle()
-
-	if args.debug: # attemps to backtrack
-		print("Debugging 6..")
-		backtrack = scram_de(mixed2) # Seeded random.shuffle()
-		backtrack = simpleStringReverse(backtrack) # "Reverses the source" | "ecruos eht sesreveR"
-		printdebug((backtrack == magicString2))
-
-	debug(">Doing a magic trick.. 3/3") # Print Debug info
-	f1_fin = magicEncodingTrick(mixed2, ppw2) # For i in hashcode (ppw2 in this case), change every letter in the source with a generated one with "i" as the seed
-
-	if args.debug: # attemps to backtrack
-		print("Debugging 7..")
-		backtrack = magicEncodingTrick(f1_fin, ppw2, False)
-		printdebug((backtrack == mixed2))
-
-	debug(">Done with edit.") # Print Debug info
-
-#Decoding stuffs
-elif args.d:
-
-	debug(">Checking for bad characters..") # Print Debug info
-	splitInput = inputstring.split('\n', 1)[0] # Splits decription input lines to allow comments
-	cleanString = ''.join(char if char in l else '' for char in splitInput) # Removed illegal characters. Not that it maters, because such charaters would mean a currupted string.
-	
-	debug(">Doing a magic trick.. 1/3")
-	magicString1 = magicEncodingTrick(cleanString, ppw2, False) # For i in hashcode (ppw2 in this case), change every letter in the source back from the generated one with "i" as the seed
-
-	if args.debug: # attemps to backtrack
-		print("Debugging 1..")
-		backtrack = magicEncodingTrick(magicString1, ppw2)
-		printdebug((backtrack == cleanString))
-
-	debug(">Moving things around.. 1/2")
-	mixed1 = scram_de(magicString1) # Seeded reversal of random.shuffle()
-	demixified = simpleStringReverse(mixed1) # "Reverses the source" | "ecruos eht sesreveR"
-
-	if args.debug: # attemps to backtrack
-		print("Debugging 2..")
-		backtrack = simpleStringReverse(demixified)
-		backtrack = scram_en(backtrack)
-		printdebug((backtrack == magicString1))
-
-	debug(">Doing a magic trick.. 2/3") # Print Debug info
-	magicString2 = magicEncodingTrick(demixified, psa, False) # For i in hashcode (psa in this case), change every letter in the source back from the generated one with "i" as the seed
-
-	if args.debug: # attemps to backtrack
-		print("Debugging 3..")
-		backtrack = magicEncodingTrick(magicString2, psa)
-		printdebug((backtrack == demixified))
-
-	debug(">Moving things around.. 2/2")
-	mixed2 = scram_de(magicString2) # Seeded reversal of random.shuffle()
-
-	if args.debug: # attemps to backtrack
-		print("Debugging 4..")
-		backtrack = scram_en(mixed2)
-		printdebug((backtrack == magicString2))
-
-	debug(">Doing a magic trick.. 3/3") # Print Debug info
-	magicString3 = magicEncodingTrick(mixed2, ppw1, False) # For i in hashcode (ppw1 in this case), change every letter in the source back from the generated one with "i" as the seed
-
-	if args.debug: # attemps to backtrack
-		print("Debugging 5..")
-		backtrack = magicEncodingTrick(magicString3, ppw1)
-		printdebug((backtrack == mixed2))
-
-	debug(">Removing our special sauce..")
-	desauced1 = scram_de(magicString3) # Seeded reversal of random.shuffle()
-	desauced2 = moveThingsAround(desauced1, False) # scram_de() x 2 (each one calls a seeded reversal of random.shuffle())
-	
-	if args.debug: # attemps to backtrack
-		print("Debugging 6..")
-		backtrack = moveThingsAround(desauced2)
-		backtrack = scram_en(backtrack)
-		printdebug((backtrack == magicString3))
-
-	debug(">Converting Unicode bytes to characters..")
-	f1_fin = fireDecode(desauced2)
-
-	if args.debug: # attemps to backtrack
-		print("Debugging 7..")
-		backtrack = fireEncode(f1_fin)
-		printdebug((backtrack == desauced2))
-
-	debug(">Done with edit.")
+if errorflag:
+	if args.e:
+		print('Warning! Errors detected! The source may not have been encoded correctly!')
+	if args.d:
+		print('Warning! Errors detected! The source may not have been decoded correctly!')
 
 # Checks output
 e = ".cfc"
@@ -444,7 +444,7 @@ if args.o == False:
 			ck = ck + 1
 	debug(">Saving changes to file..") # Print Debug info
 	with open(outputfile, "w") as f:
-		f.write(f1_fin)
+		f.write(source)
 	debug(">Changes saved to: "+outputfile) # Print Debug info
 
 debug("Processed '%s' characters in '%s' seconds." % (str(len(f1)),str(time.time()-start)))
@@ -468,4 +468,4 @@ if args.remove:
 	os.remove(args.I)
 
 if args.o:
-	print("[--output--]\n%s\n[--output--]" % (f1_fin))
+	print("[--output--]\n%s\n[--output--]" % (source))
