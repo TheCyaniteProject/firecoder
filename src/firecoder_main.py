@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.0.0"
+version = "4.1"
 
 default_sequence = "?!*/~*/~*!/*"
 legal_seq_chars  = "?!*/~"
@@ -166,15 +166,17 @@ l = (string.digits +
 		.replace("}",'')
 		.replace("(",'')
 		.replace(")",''))
-l2 = [i for i in l]
+l2 = [i for i in string.printable]
 
 debug(">Done.") # Print Debug info
 
 
 # Modifiers
 
-def replace_all(string, dic):
-	return ''.join(dic.get(char, char) for char in string)
+def replace_all(string, dic, mode=True):
+	if not mode:
+		string = [string[i:i + 2] for i in range(0, len(string), 2)]
+	return ''.join(str(dic.get(word, word)) for word in string)
 
 
 
@@ -241,8 +243,8 @@ def simpleStringReverse(string): # sequence character: ~
 
 def StringStripper(string, mode=True):
 	if args.e:
-		string = ''.join(char if char in l else '?' for char in string) # Replaces all unknown characters with: ?
-	return replace_all(string, gen_codes("l", psa, mode))
+		string = ''.join(char if char in l2 else '?' for char in string) # Replaces all unknown characters with: ?
+	return replace_all(string, gen_codes("l", psa, mode), mode)
 
 
 def fireCoderMethod(string, mode=True): # sequence character: ?
