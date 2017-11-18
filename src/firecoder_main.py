@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.1"
+version = "4.2"
 
 default_sequence = "?!*/~*/~*!/*"
 legal_seq_chars  = "?!*/~"
@@ -23,7 +23,7 @@ r = random.Random()
 start = time.time()
 errorflag = False
 
-seq_help = '''	Sequence help. This is a list of all flags and what they do.
+seq_help = '''\tSequence help. This is a list of all flags and what they do.
 	(Non-Sequence Characters will raise an error)
 
 	Sequence example: %s  # This is our default sequence, we highly
@@ -84,9 +84,14 @@ if args.seqhelp:
 	print(seq_help)
 	sys.exit(1)
 
-
-# Here we check if we are missing anything, check argument compatibility, and do some setup for missing arguments
+ 
 def argumentChecker():
+	"""Here we check if we are missing anything, check argument compatibility, and do some setup for missing arguments
+	
+	:Date:: 11/11/2017
+
+	:Author:: Allison Smith
+	"""
 
 	# Check Password
 	if args.p == None:
@@ -119,9 +124,20 @@ def argumentChecker():
 argumentChecker() # Run the function we just created. We only created it for organazation
 
 # These messages will be printed if --echo is passed
-def debug(message="Default text"):
+def debug(string="Default text"):
+	"""Print string if args.echo(--echo argument)
+
+    :Parameters:: 
+
+    	string -- The string to print (default: "Default text")
+
+	:Date:: 11/11/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	if args.echo:
-		print(message)
+		print(string)
 
 # Utilities
 def setErrorFlag(flag=True):
@@ -129,10 +145,32 @@ def setErrorFlag(flag=True):
 	errorflag = flag
 
 def debugexit():
+	"""Prints a message, and then calls sys.exit(2)
+
+	For use in debugging
+
+	:Date:: 11/11/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	print("[!!DEBUG EXIT!!]")
 	sys.exit(2)
 
 def percentage(part, whole): # Used for the loading bars in the debug output
+	"""Returns a % of a given number.
+
+    :Parameters:: 
+
+    	part -- The fraction of the whole number
+
+		whole -- The whole number
+
+	:Date:: Before 11/11/2017 (Legacy Version)
+	
+	:Author:: Allison Smith
+	"""
+
 	return 100 * float(part)/float(whole)
 
 # Link START!!! :D
@@ -174,14 +212,48 @@ debug(">Done.") # Print Debug info
 # Modifiers
 
 def replace_all(string, dic, mode=True):
+	"""Replaces every value (from 'dic') in 'string' for key in 'dic'
+
+    :Parameters:: 
+
+    	string -- The string to edit
+
+		dic -- The dictionary to use for the edit
+
+		mode -- True/False is the script running in encoding mode? (default: True)
+
+	:Date:: 11/12/2017
+
+	:Updated:: 11/15/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	if not mode:
 		string = [string[i:i + 2] for i in range(0, len(string), 2)]
 	return ''.join(str(dic.get(word, word)) for word in string)
 
 
 
-def gen_keys(char,HASH,mode=True):
-	r.seed(hashlib.sha1((char+HASH).encode()).hexdigest())
+def gen_keys(HASH,char='A',mode=True):
+	"""Generates a dictonary with a key/value for each item in 'l' ('l' is a string of legal characters)
+
+	This is used to convert each item in a string into another character, and back.
+
+    :Parameters:: 
+
+    	char -- A character to combine with the hash (default: 'A')
+
+		HASH -- The hash to use in seeding random.choice()
+
+		mode -- True/False is the script running in encoding mode? (default: True)
+
+	:Date:: 11/12/2017
+	
+	:Author:: Allison Smith
+	"""
+
+	r.seed(hashlib.sha1((str(char)+str(HASH)).encode()).hexdigest())
 	m,d = [],{}
 	for i in l:
 		c = r.choice(l)
@@ -194,7 +266,26 @@ def gen_keys(char,HASH,mode=True):
 			d[c] = i
 	return d
 
-def gen_codes(char,HASH,mode=True): # For turing the codes back into the original entry
+def gen_codes(HASH,char='A',mode=True):
+	"""Generates a dictonary with a key/value for each item in 'l2' ('l2' is a list of legal characters)
+
+	This is different from gen_keys() in that it is used to convert each item in a string into a two-digit code, and back.
+
+	(For use when not handling unicode)
+
+    :Parameters:: 
+
+    	char -- A character to combine with the hash (default: 'A')
+
+		HASH -- The hash to use in seeding random.choice()
+
+		mode -- True/False is the script running in encoding mode? (default: True)
+
+	:Date:: 11/14/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	pps = char+HASH
 	ps = hashlib.md5(pps.encode())
 	s = ps.hexdigest()
@@ -211,52 +302,134 @@ def gen_codes(char,HASH,mode=True): # For turing the codes back into the origina
 			d[c] = i
 	return d
 
-def seed_en(char,HASH): # For swopping around the codes
-	return gen_keys(char,HASH,True)
+def magicEggScrambler(string, mode=True):
+	"""Calls random.shuffle() on the string with 'psa' as the seed.
 
-def seed_de(char,HASH): # For swopping back around the codes
-	return gen_keys(char,HASH,False)
+	Is able to shuffle/unshuffle depending on the mode.
 
-def magicEggScrambler(string, mode=True): # sequence character: *
+	:Sequence Character:: * (This function's character when calling in a custom sequence)
+
+    :Parameters:: 
+
+    	string -- The string to edit
+
+		mode -- True/False is the script running in encoding mode? (default: True)
+
+	:Date:: 11/12/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	if mode:
-		return scram_en(string)
-	return scram_de(string)
-
-def scram_en(string):
 		l = list(string)
 		r.seed(hashlib.sha1(psa.encode()).hexdigest())
 		r.shuffle(l)
 		return ''.join(l)
+	else:
+		l = list(string)
+		l2 = list(range(len(l)))
+		r.seed(hashlib.sha1(psa.encode()).hexdigest())
+		r.shuffle(l2)
+		l3 = [0]*len(l)
+		for index,originalIndex in enumerate(l2):
+			l3[originalIndex] = l[index]
+		return ''.join(l3)
 
-def scram_de(string):
-	l = list(string)
-	l2 = list(range(len(l)))
-	r.seed(hashlib.sha1(psa.encode()).hexdigest())
-	r.shuffle(l2)
-	l3 = [0]*len(l)
-	for index,originalIndex in enumerate(l2):
-		l3[originalIndex] = l[index]
-	return ''.join(l3)
+def simpleStringReverse(string):
+	"""Simply reverses the imput string.
 
-def simpleStringReverse(string): # sequence character: ~
+	:Sequence Character:: ~ (This function's character when calling in a custom sequence)
+
+    :Parameters:: 
+
+    	string -- The string to edit
+
+	:Date:: 11/12/2017
+	
+	:Author:: Allison Smith
+	"""
 	return string[::-1]
 
 def StringStripper(string, mode=True):
+	"""In encode mode; removes any charaters not found in 'l2' ('l2' is a list of legal characters) and replaces them with a '?'.
+
+	In both modes; calls replace_all() with gen_codes() as the dictionary. (This sets/unsets all characters into two digit codes)
+
+	This is used when not handling Unicode.
+
+    :Parameters:: 
+
+    	string -- The string to edit
+
+		mode -- True/False is the script running in encoding mode? (default: True)
+
+	:Date:: 11/14/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	if args.e:
-		string = ''.join(char if char in l2 else '?' for char in string) # Replaces all unknown characters with: ?
-	return replace_all(string, gen_codes("l", psa, mode), mode)
+		string = ''.join(char if char in l2 else '?' for char in string)
+	return replace_all(string, gen_codes(psa,"l",mode), mode)
 
 
-def fireCoderMethod(string, mode=True): # sequence character: ?
+def fireCoderMethod(string, mode=True):
+	"""A function for handling Unicode.
+
+	This (in encode mode) will encode the input string as UTF-16 bytes, and then as base64. (In decode mode, it's decoded in reverse)
+
+	:Sequence Character:: ? (This function's character when calling in a custom sequence)
+
+    :Parameters:: 
+
+    	string -- The string to edit
+
+		mode -- True/False is the script running in encoding mode? (default: True)
+
+	:Date:: 11/11/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	if mode:
 		return fireEncode(string)
 	return fireDecode(string)
 
 def fireEncode(string):
+	"""A function for handling Unicode.
+
+	This is the encode method.
+
+	:Sequence Character:: ? (This function's character when calling in a custom sequence)
+
+    :Parameters:: 
+
+    	string -- The string to edit
+
+	:Date:: 11/11/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	string = base64.b64encode(string.encode('utf-16'))
 	return string.decode('utf-8')
 
 def fireDecode(string):
+	"""A function for handling Unicode.
+
+	This is the decode method.
+
+	:Sequence Character:: ? (This function's character when calling in a custom sequence)
+
+    :Parameters:: 
+
+    	string -- The string to edit
+
+	:Date:: 11/11/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	try:
 		string = base64.b64decode(string)
 		string = str(string.decode('utf-16'))
@@ -282,7 +455,24 @@ f1 = inputstring
 
 #Encoding stuffs
 
-def magicEncodingTrick(string, HASH, mode=True): # sequence character: /
+def magicEncodingTrick(string, HASH, mode=True):
+	"""For each character (i) in the HASH, gen_keys(HASH,i,mode) and replace_all() in string from that generated dictonary.
+
+	:Sequence Character:: / (This function's character when calling in a custom sequence)
+
+    :Parameters:: 
+
+    	string -- The string to edit
+
+		HASH -- The hash to pass to gen_keys()
+
+		mode -- True/False is the script running in encoding mode? (default: True)
+
+	:Date:: 11/14/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	if args.echo:
 		run = 0
 	if mode:
@@ -294,10 +484,7 @@ def magicEncodingTrick(string, HASH, mode=True): # sequence character: /
 			run+=1
 			sys.stdout.write("\r>Working [%d%%]" % percentage(run,len(HASH)))
 			sys.stdout.flush()
-		if mode:
-			string = replace_all(string, seed_en(i,HASH)) # Changes characters in the codes using a seed
-		else:
-			string = replace_all(string, seed_de(i,HASH)) # unChanges characters in the codes using a seed
+		string = replace_all(string, gen_keys(HASH,i,mode)) # unChanges characters in the codes using a seed
 	if args.echo: # Print Debug info
 		sys.stdout.write("\r>Working [DONE]\n")
 		sys.stdout.flush()
@@ -329,9 +516,25 @@ shiL = 7
 shiH = 11
 endicnum1,endicnum2 = mcc_util(shiL,psa),mcc_util(shiH,psa)
 dedicnum1,dedicnum2 = mcc_util(shiL,psa,False),mcc_util(shiH,psa,False)
+ 
+def magicCharacterChanger(string, mode=True):
+	"""Changes the characters in the input string using theor position. (Would have a better description, but I've forgotten how it works..)
 
-# This is slow, but very effective!
-def magicCharacterChanger(string, HASH, mode=True): # sequence character: !
+	This is slow, but very effective!
+
+	:Sequence Character:: ! (This function's character when calling in a custom sequence)
+
+    :Parameters:: 
+
+    	string -- The string to edit
+
+		mode -- True/False is the script running in encoding mode? (default: True)
+
+	:Date:: 11/14/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	if mode:
 		mcc = ''.join(endicnum1[i%shiL][c] for i,c in enumerate(string))
 		return ''.join(endicnum2[i%shiH][c] for i,c in enumerate(mcc))
@@ -339,11 +542,20 @@ def magicCharacterChanger(string, HASH, mode=True): # sequence character: !
 		mcc = ''.join(dedicnum2[i%shiH][c] for i,c in enumerate(string))
 		return ''.join(dedicnum1[i%shiL][c] for i,c in enumerate(mcc))
 
+def printdebug(value=False):
+	"""
+	
+	:Parameters:: 
 
-def moveThingsAround(string, mode=True): # sequence character: !
-	return magicCharacterChanger(string, psa, mode)
+    	value -- An if statement that should return True or false (hopefuly True)
+		\n\t Example: (value1 == value2)
+		\n\t Default: False
 
-def printdebug(value):
+	:Date:: 11/14/2017
+	
+	:Author:: Allison Smith
+	"""
+
 	if value:
 		print("DEBUG: PASS")
 	else:
@@ -354,7 +566,7 @@ def printdebug(value):
 source = inputstring
 
 
-# Initial pass, check formatting.
+# Initial pass, check sequence formatting.
 pos = 1
 for char in args.seq:
 	if char not in legal_seq_chars:
@@ -372,7 +584,6 @@ else:
 	if args.e:
 		source = StringStripper(source, True)
 
-# start with: inputstring
 
 # Sequence Processing
 
@@ -387,7 +598,7 @@ for char in args.seq:
 		if char == "?":
 			source = fireCoderMethod(source, True)
 		elif char == "!":
-			source = magicCharacterChanger(source, ppw1+str(pos), True)
+			source = magicCharacterChanger(source, True)
 		elif char == "*":
 			source = magicEggScrambler(source, True)
 		elif char == "/":
@@ -399,7 +610,7 @@ for char in args.seq:
 		if char == "?":
 			source = fireCoderMethod(source, False)
 		elif char == "!":
-			source = magicCharacterChanger(source, ppw1+str(pos), False)
+			source = magicCharacterChanger(source, False)
 		elif char == "*":
 			source = magicEggScrambler(source, False)
 		elif char == "/":
