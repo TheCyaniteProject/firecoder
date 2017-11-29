@@ -1,9 +1,10 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
 version = "4.2"
 
+outputEncode = 'ascii' # List of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html
 default_sequence = "?!*/~*/~*!/*"
 legal_seq_chars  = "?!*/~"
 
@@ -67,6 +68,7 @@ conf3.add_argument("-O", metavar=("OUTPUT"), help="sets the output file", defaul
 arg.add_argument("-p", metavar=("PASSWORD"), help="specify the password for the encryption", default=None)
 arg.add_argument("--salt", help="add a custom salt to encryption - this will be used in places other than hashing", default=False)
 arg.add_argument("--seq", metavar=("SEQUENCE"), help="set a custom encryption sequence - pass: '--seqhelp' for more info - default sequence: %s" % default_sequence, default=default_sequence)
+arg.add_argument("--codec", help="set a custom codec for writing files - list of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html - default codec: %s" % outputEncode, default=outputEncode)
 arg.add_argument("--seqhelp", help="prints help related to how sequences work, and what each character does, and then exits", action="store_true")
 arg.add_argument("--echo", help="prints extra info including the current password and HASH in plain text", action="store_true")
 arg.add_argument("--debug", help="enables debug mode: this attemps to backtrack the encrption at each step to make sure decryption is possible", action="store_true")
@@ -443,8 +445,12 @@ If this problem persists, please file an issue: https://github.com/TheCyanitePro
 # Read file
 if not args.I == None:
 	debug(">Reading input file..") # Print Debug info
-	with open(args.I, "rb") as f:
-		inputstring = "".join(map(chr, f.read()))
+	try:
+		with open(args.I, 'rb') as inFile: # binary
+			inputstring = "".join(map(chr, inFile.read()))
+	except:
+		with open(args.I, 'r') as inFile: # non-binary
+			inputstring = str(inFile.read().encode())
 	debug(">Opened file '%s'" % (args.I)) # Print Debug info
 else: inputstring = args.i
 
@@ -610,6 +616,8 @@ for char in args.seq:
 		if char == "?":
 			source = fireCoderMethod(source, False)
 		elif char == "!":
+			if "'" in source:
+				print(True)
 			source = magicCharacterChanger(source, False)
 		elif char == "*":
 			source = magicEggScrambler(source, False)
@@ -626,6 +634,8 @@ if args.d:
 		source = StringStripper(source, False)
 
 debug(">Done with edit.")
+
+debug("Processed '%s' characters in '%s' seconds." % (str(len(f1)),str(time.time()-start)))
 
 if errorflag:
 	if args.e:
@@ -656,11 +666,30 @@ if args.o == False:
 			outputfile = o+"("+str(ck)+")"+e
 			ck = ck + 1
 	debug(">Saving changes to file..") # Print Debug info
-	with open(outputfile, "w") as f:
-		f.write(source)
-	debug(">Changes saved to: "+outputfile) # Print Debug info
+	try:
+		source = source.encode(args.codec).decode('unicode-escape').encode(args.codec)
+		altmode = False
+	except OverflowError:
+		try:
+			source = source.encode(args.codec)
+			altmode = False
+		except Exception as e:
+			try:
+				source = source.encode("ascii")
+				altmode = True
+			except:
+				print("Error: minor encoding error while encoding file: %s\nIf this problem persists, please file an issue: https://github.com/TheCyaniteProject/firecoder/issues" % str(e))
+			print("File was not saved.")
+			sys.exit(2)
 
-debug("Processed '%s' characters in '%s' seconds." % (str(len(f1)),str(time.time()-start)))
+		if altmode:
+			with open(outputfile, 'w', encoding=args.codec) as outFile:
+				outFile.write(source)
+				debug(">Changes saved to: "+outputfile) # Print Debug info
+		else:
+			with open(outputfile, 'wb') as outFile:
+				outFile.write(bytes(source))
+				debug(">Changes saved to: "+outputfile) # Print Debug info
 
 if args.remove:
 	debug(">Deleting input file - Basic shredding") # Print Debug info
