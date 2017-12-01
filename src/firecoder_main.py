@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.2"
+version = "4.3"
 
-outputEncode = 'ascii' # List of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html
+outputEncode = 'utf-8' # List of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html
 default_sequence = "?!*/~*/~*!/*"
 legal_seq_chars  = "?!*/~"
+exe = ".cfc"
 
 # Imports
 import os
@@ -59,19 +60,19 @@ arg = argparse.ArgumentParser(description="Encodes/Decodes messages and files - 
 conf = arg.add_mutually_exclusive_group()
 conf2 = arg.add_mutually_exclusive_group()
 conf3 = arg.add_mutually_exclusive_group()
-conf.add_argument("-I",  metavar=("FILENAME"), help="specify the file to encrypt", default=None)
-conf.add_argument("-i",  metavar=("MESSAGE"), help="specify the message to encrypt", default=None)
+conf.add_argument("-I",  metavar=("FILENAME"), help="specify the file to edit", default=None)
+conf.add_argument("-i",  metavar=("MESSAGE"), help="specify the message to edit", default=None)
 conf2.add_argument("-e", help="specify use encode mode", action="store_true")
 conf2.add_argument("-d", help="specify use decode mode", action="store_true")
-conf3.add_argument("-o", help="prints output to console", action="store_true")
-conf3.add_argument("-O", metavar=("OUTPUT"), help="sets the output file", default=None)
-arg.add_argument("-p", metavar=("PASSWORD"), help="specify the password for the encryption", default=None)
-arg.add_argument("--salt", help="add a custom salt to encryption - this will be used in places other than hashing", default=False)
+conf3.add_argument("-o", help="prints output to generic file", action="store_true")
+conf3.add_argument("-O", metavar=("OUTPUT"), help="sets the output file (default prints output to console)", default=None)
+arg.add_argument("-p", metavar=("PASSWORD"), help="specify the password", default=None)
+arg.add_argument("--salt", help="add a custom salt (default is the reversed password)", default=False)
 arg.add_argument("--seq", metavar=("SEQUENCE"), help="set a custom encryption sequence - pass: '--seqhelp' for more info - default sequence: %s" % default_sequence, default=default_sequence)
-arg.add_argument("--codec", help="set a custom codec for writing files - list of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html - default codec: %s" % outputEncode, default=outputEncode)
+arg.add_argument("--codec", help="set a custom codec for writing files - list of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html - default codec: %s" % outputEncode, default=None)
 arg.add_argument("--seqhelp", help="prints help related to how sequences work, and what each character does, and then exits", action="store_true")
-arg.add_argument("--echo", help="prints extra info including the current password and HASH in plain text", action="store_true")
-arg.add_argument("--debug", help="enables debug mode: this attemps to backtrack the encrption at each step to make sure decryption is possible", action="store_true")
+arg.add_argument("--echo", help="prints extra info (including the current password and HASH in plain text)", action="store_true")
+arg.add_argument("--debug", help="enables debug mode (this attemps to backtrack the encrption at each step to make sure decryption is possible)", action="store_true")
 arg.add_argument("--remove", help="deletes the input file after compleation", action="store_true")
 args = arg.parse_args()
 
@@ -122,6 +123,15 @@ def argumentChecker():
 		if not args.d:
 			arg.error("no mode provided [-e | -d]")
 			sys.exit(1) #Exit with minor error
+	
+	# Check file save method
+	if not args.codec == None:
+		if not args.o and (args.O == None):
+			arg.error("can't use [--codec]: not saving to file")
+			sys.exit(1) #Exit with minor error
+	else:
+		args.codec = outputEncode
+	
 
 argumentChecker() # Run the function we just created. We only created it for organazation
 
@@ -176,11 +186,13 @@ def percentage(part, whole): # Used for the loading bars in the debug output
 	return 100 * float(part)/float(whole)
 
 # Link START!!! :D
-if args.o:
+if args.debug and (args.echo == False):
 	print("===== Cyan's FireCoder v%s - A Cyanite Project =====\n" % version) # Title echo
 
 # Debug mode?
-debug(">> Debug ON <<\nOutput:")
+if args.debug:
+	print(">> Debug ON <<")
+debug("Output:")
 if not args.e:
 	debug(">Mode: Decode")
 else:
@@ -206,7 +218,7 @@ l = (string.digits +
 		.replace("}",'')
 		.replace("(",'')
 		.replace(")",''))
-l2 = [i for i in string.printable]
+l2 = [i for i in string.printable+'\x00']
 
 debug(">Done.") # Print Debug info
 
@@ -446,11 +458,15 @@ If this problem persists, please file an issue: https://github.com/TheCyanitePro
 if not args.I == None:
 	debug(">Reading input file..") # Print Debug info
 	try:
-		with open(args.I, 'rb') as inFile: # binary
-			inputstring = "".join(map(chr, inFile.read()))
+		with open(args.I, 'r', encoding='ascii') as inFile: # non-binary
+			inputstring = inFile.read()
 	except:
-		with open(args.I, 'r') as inFile: # non-binary
-			inputstring = str(inFile.read().encode())
+		try:
+			with open(args.I, 'r', encoding='utf-8-sig') as inFile: # non-binary
+				inputstring = inFile.read()
+		except:
+			with open(args.I, 'rb') as inFile: # binary
+				inputstring = "".join(map(chr, inFile.read()))
 	debug(">Opened file '%s'" % (args.I)) # Print Debug info
 else: inputstring = args.i
 
@@ -540,13 +556,16 @@ def magicCharacterChanger(string, mode=True):
 	
 	:Author:: Allison Smith
 	"""
-
-	if mode:
-		mcc = ''.join(endicnum1[i%shiL][c] for i,c in enumerate(string))
-		return ''.join(endicnum2[i%shiH][c] for i,c in enumerate(mcc))
-	else:
-		mcc = ''.join(dedicnum2[i%shiH][c] for i,c in enumerate(string))
-		return ''.join(dedicnum1[i%shiL][c] for i,c in enumerate(mcc))
+	try:
+		if mode:
+			mcc = ''.join(endicnum1[i%shiL][c] for i,c in enumerate(string))
+			return ''.join(endicnum2[i%shiH][c] for i,c in enumerate(mcc))
+		else:
+			mcc = ''.join(dedicnum2[i%shiH][c] for i,c in enumerate(string))
+			return ''.join(dedicnum1[i%shiL][c] for i,c in enumerate(mcc))
+	except KeyError as ex:
+		print("Error: Found unknown character in source while enumerating cypher dictionary: %s\nThis may be a result of loading a .cfc file saved as Unicode. If so, try sanitizing the file and try again." % ex)
+		sys.exit(2)
 
 def printdebug(value=False):
 	"""
@@ -563,9 +582,9 @@ def printdebug(value=False):
 	"""
 
 	if value:
-		print("DEBUG: PASS")
+		print(">>DEBUG: PASS")
 	else:
-		print("DEBUG: FAIL")
+		print(">>DEBUG: FAIL")
 
 # Main Process
 
@@ -602,29 +621,109 @@ if args.d:
 for char in args.seq:
 	if args.e:
 		if char == "?":
+			if args.debug:
+				backtrack = source
 			source = fireCoderMethod(source, True)
+			if args.debug:
+				print(">>Attempting to backtrack fireCoderMethod(): 1/1")
+				printdebug(backtrack == fireCoderMethod(source, False))
 		elif char == "!":
+			if args.debug:
+				backtrack = source
 			source = magicCharacterChanger(source, True)
+			if args.debug:
+				try:
+					escvar += 1
+				except:
+					escvar = 1
+				print(">>Attempting to backtrack magicCharacterChanger(): %i/%i" % (escvar, args.seq.count('!')))
+				printdebug(backtrack == magicCharacterChanger(source, False))
 		elif char == "*":
+			if args.debug:
+				backtrack = source
 			source = magicEggScrambler(source, True)
+			if args.debug:
+				try:
+					eggvar += 1
+				except:
+					eggvar = 1
+				print(">>Attempting to backtrack magicEggScrambler(): %i/%i" % (eggvar, args.seq.count('*')))
+				printdebug(backtrack == magicEggScrambler(source, False))
 		elif char == "/":
+			if args.debug:
+				backtrack = source
 			source = magicEncodingTrick(source, str(pos)+ppw2, True)
+			if args.debug:
+				try:
+					metvar += 1
+				except:
+					metvar = 1
+				print(">>Attempting to backtrack magicEncodingTrick(): %i/%i" % (metvar, args.seq.count('/')))
+				printdebug(backtrack == magicEncodingTrick(source, str(pos)+ppw2, False))
 		elif char == "~":
+			if args.debug:
+				backtrack = source
 			source = simpleStringReverse(source)
+			if args.debug:
+				try:
+					ssrvar += 1
+				except:
+					ssrvar = 1
+				print(">>Attempting to backtrack simpleStringReverse(): %i/%i" % (ssrvar, args.seq.count('~')))
+				printdebug(backtrack == simpleStringReverse(source))
 		pos += 1
 	elif args.d:
 		if char == "?":
+			if args.debug:
+				backtrack = source
 			source = fireCoderMethod(source, False)
+			if args.debug:
+				print(">>Attempting to backtrack fireCoderMethod(): 1/1")
+				printdebug(backtrack == fireCoderMethod(source, True))
 		elif char == "!":
-			if "'" in source:
-				print(True)
+			if args.debug:
+				backtrack = source
 			source = magicCharacterChanger(source, False)
+			if args.debug:
+				try:
+					escvar += 1
+				except:
+					escvar = 1
+				print(">>Attempting to backtrack magicCharacterChanger(): %i/%i" % (escvar, args.seq.count('!')))
+				printdebug(backtrack == magicCharacterChanger(source, True))
 		elif char == "*":
+			if args.debug:
+				backtrack = source
 			source = magicEggScrambler(source, False)
+			if args.debug:
+				try:
+					eggvar += 1
+				except:
+					eggvar = 1
+				print(">>Attempting to backtrack magicEggScrambler(): %i/%i" % (eggvar, args.seq.count('*')))
+				printdebug(backtrack == magicEggScrambler(source, True))
 		elif char == "/":
+			if args.debug:
+				backtrack = source
 			source = magicEncodingTrick(source, str(pos)+ppw2, False)
+			if args.debug:
+				try:
+					metvar += 1
+				except:
+					metvar = 1
+				print(">>Attempting to backtrack magicEncodingTrick(): %i/%i" % (metvar, args.seq.count('/')))
+				printdebug(backtrack == magicEncodingTrick(source, str(pos)+ppw2, True))
 		elif char == "~":
+			if args.debug:
+				backtrack = source
 			source = simpleStringReverse(source)
+			if args.debug:
+				try:
+					ssrvar += 1
+				except:
+					ssrvar = 1
+				print(">>Attempting to backtrack simpleStringReverse(): %i/%i" % (ssrvar, args.seq.count('~')))
+				printdebug(backtrack == simpleStringReverse(source))
 		pos -= 1
 	else:
 		print('Error: critical unknown error while parsing sequence: "%s" please file an issue!! https://github.com/TheCyaniteProject/firecoder/issues' % args.seq)
@@ -635,7 +734,11 @@ if args.d:
 
 debug(">Done with edit.")
 
-debug("Processed '%s' characters in '%s' seconds." % (str(len(f1)),str(time.time()-start)))
+if args.debug or args.echo:
+	if args.e:
+		print("Processed '%i' characters in '%s' seconds." % (len(f1),str(time.time()-start)))
+	else:
+		print("Processed '%i' characters in '%s' seconds." % (len(source),str(time.time()-start)))
 
 if errorflag:
 	if args.e:
@@ -643,71 +746,77 @@ if errorflag:
 	if args.d:
 		print('Warning! Errors detected! The source may not have been decoded correctly!')
 
-# Checks output
-e = ".cfc"
-if args.o == False:
-	if not args.O == None:
-		o,s = os.path.splitext(args.O)
-		outputfile = args.O
-		ck = 1
-		while os.path.isfile(outputfile) == True:
-			outputfile = o+"("+str(ck)+")"+s
-			ck = ck + 1
-	else:
-		if not args.I == None:
-			o,s = os.path.splitext(args.I)
-			outputfile = o+e
-			ck = 1
-		else:
-			o = "output"
-			outputfile = o+e
-			ck = 1
-		while os.path.isfile(outputfile) == True:
-			outputfile = o+"("+str(ck)+")"+e
-			ck = ck + 1
-	debug(">Saving changes to file..") # Print Debug info
+def finishingTouches(outputfile="output.cfc"): # For writing files:
+	global source
+	debug(">Saving to file..") # Print Debug info
 	try:
 		source = source.encode(args.codec).decode('unicode-escape').encode(args.codec)
 		altmode = False
-	except OverflowError:
+	except (OverflowError, UnicodeDecodeError, UnicodeEncodeError):
+		print(1)
 		try:
 			source = source.encode(args.codec)
 			altmode = False
-		except Exception as e:
+		except Exception as ex:
+			print(2)
 			try:
 				source = source.encode("ascii")
 				altmode = True
 			except:
-				print("Error: minor encoding error while encoding file: %s\nIf this problem persists, please file an issue: https://github.com/TheCyaniteProject/firecoder/issues" % str(e))
-			print("File was not saved.")
+				print("Error: minor encoding error while encoding file: %s\nIf this problem persists, please file an issue: https://github.com/TheCyaniteProject/firecoder/issues" % str(ex))
+				print("File was not saved.")
 			sys.exit(2)
+	if altmode:
+		with open(outputfile, 'w', encoding=args.codec) as outFile:
+			outFile.write(source)
+			debug(">Changes saved to: %s | w/ w" % outputfile) # Print Debug info
+	else:
+		with open(outputfile, 'wb') as outFile:
+			outFile.write(bytes(source))
+			debug(">Changes saved to: %s | w/ wb" % outputfile) # Print Debug info
 
-		if altmode:
-			with open(outputfile, 'w', encoding=args.codec) as outFile:
-				outFile.write(source)
-				debug(">Changes saved to: "+outputfile) # Print Debug info
-		else:
-			with open(outputfile, 'wb') as outFile:
-				outFile.write(bytes(source))
-				debug(">Changes saved to: "+outputfile) # Print Debug info
-
-if args.remove:
-	debug(">Deleting input file - Basic shredding") # Print Debug info
-	ou = ''
-	with open(args.I, 'r+b') as f:
-		for i in f.read():
-			f.seek(0)
-			ou = random.choice(l)+ou+random.choice(l)
-			f.write(ou)
-		for i in range(15):
-			ou = ''
-			with open(args.I, 'r+b') as f:
-				for i in f.read():
-					f.seek(0)
-					ou = random.choice(l)+ou
+	if args.remove:
+		debug(">Deleting input file - Basic shredding") # Print Debug info
+		ou = ''
+		with open(args.I, 'r+b') as f:
+			for i in f.read():
+				f.seek(0)
+				ou = random.choice(l)+ou+random.choice(l)
 				f.write(ou)
+			for i in range(15):
+				ou = ''
+				with open(args.I, 'r+b') as f:
+					for i in f.read():
+						f.seek(0)
+						ou = random.choice(l)+ou
+					f.write(ou)
+		os.remove(args.I)
 
-	os.remove(args.I)
+# Checks output
+if not args.o:
+	if args.O == None:
+		if args.echo or args.debug:
+			print("\n[--output--]")
+		print(source)
+	else:
+		o,s = os.path.splitext(args.O)
+		outputfile = args.O
+		ck = 1
+		while os.path.isfile(outputfile):
+			outputfile = o+"("+str(ck)+")"+s
+			ck = ck + 1
+		finishingTouches(outputfile)
+else:
+	if not args.I == None:
+		o,s = os.path.splitext(args.I)
+		outputfile = o+exe
+		ck = 1
+	else:
+		o = "output"
+		outputfile = o+exe
+		ck = 1
+	while os.path.isfile(outputfile):
+		outputfile = o+"("+str(ck)+")"+exe
+		ck = ck + 1
+	finishingTouches(outputfile)
 
-if args.o:
-	print("[--output--]\n%s\n[--output--]" % (source))
