@@ -18,7 +18,7 @@ Firecoder is a command-line app that uses a combination of procedural cyphers, a
             used once.
 
     !       Triggers our magicCharacterChanger() function which changes each
-            character based off of it's position. This this is very effective,
+            character based off of it's position. This is very effective,
             as it doesn't mix characters, but generates dictonaries for them.
             Because of this, this proccess can be very slow, especially with
             long sources.
@@ -35,7 +35,7 @@ Firecoder is a command-line app that uses a combination of procedural cyphers, a
 
 #### Ranges:
 
-	Ranges are simple statements that restrict or expand the available characters that can be used during encryption. An example of a custom range would be something like: "abcd12345-" Though, you could do something much more complex than this.
+Ranges are simple statements that restrict or expand the available characters that can be used during encryption. An example of a custom range would be something like: "abcd12345-" Though, you could do something much more complex than this.
 ### 
 
 	Here are characters in the default range:
