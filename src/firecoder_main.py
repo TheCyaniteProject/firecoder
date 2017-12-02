@@ -2,12 +2,7 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.3"
-
-outputEncode = 'utf-8' # List of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html
-default_sequence = "?!*/~*/~*!/*"
-legal_seq_chars  = "?!*/~"
-exe = ".cfc"
+version = "4.4"
 
 # Imports
 import os
@@ -24,6 +19,22 @@ import argparse
 r = random.Random()
 start = time.time()
 errorflag = False
+outputEncode = 'utf-8' # List of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html
+default_sequence = "?!*/~*/~*!/*"
+legal_seq_chars  = "?!*/~"
+exe = ".cfc"
+default_letters = (string.digits +
+	string.ascii_letters +
+	string.punctuation.replace('"','')
+		.replace("'",'')
+		.replace("[",'')
+		.replace("]",'')
+		.replace("{",'')
+		.replace("}",'')
+		.replace("(",'')
+		.replace(")",''))
+letterList = [i for i in string.printable]
+
 
 seq_help = '''\tSequence help. This is a list of all flags and what they do.
 	(Non-Sequence Characters will raise an error)
@@ -54,6 +65,8 @@ seq_help = '''\tSequence help. This is a list of all flags and what they do.
 		as you can, as it adds very little overhead.
 ''' % default_sequence
 
+def printTitle():
+	print("===== Cyan's FireCoder v%s - A Cyanite Project =====\n" % version)
 
 # Command line stuffs
 arg = argparse.ArgumentParser(description="Encodes/Decodes messages and files - requires [-I | -i] [-e | -d] [-p PASSWORD]")
@@ -69,6 +82,7 @@ conf3.add_argument("-O", metavar=("OUTPUT"), help="sets the output file (default
 arg.add_argument("-p", metavar=("PASSWORD"), help="specify the password", default=None)
 arg.add_argument("--salt", help="add a custom salt (default is the reversed password)", default=False)
 arg.add_argument("--seq", metavar=("SEQUENCE"), help="set a custom encryption sequence - pass: '--seqhelp' for more info - default sequence: %s" % default_sequence, default=default_sequence)
+arg.add_argument("--range", metavar=("CHARACTERS"), help="set a custom ASCII character range to be used during encription, this range will be sampled repeatedly and will change the resulting output (minumum of 10 characters, utf-8 compatable) - default uses the entire ASCII range, minus: '\"[]{}()", default=default_letters)
 arg.add_argument("--codec", help="set a custom codec for writing files - list of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html - default codec: %s" % outputEncode, default=None)
 arg.add_argument("--seqhelp", help="prints help related to how sequences work, and what each character does, and then exits", action="store_true")
 arg.add_argument("--echo", help="prints extra info (including the current password and HASH in plain text)", action="store_true")
@@ -78,12 +92,12 @@ args = arg.parse_args()
 
 # Title, Help & Exit if no arguments are passed
 if len(sys.argv)==1:
-	print("===== Cyan's FireCoder v%s - A Cyanite Project =====\n" % version)
+	printTitle()
 	arg.print_help()
 	sys.exit(1)
 
 if args.seqhelp:
-	print("===== Cyan's FireCoder v%s - A Cyanite Project =====\n" % version)
+	printTitle()
 	print(seq_help)
 	sys.exit(1)
 
@@ -132,6 +146,19 @@ def argumentChecker():
 	else:
 		args.codec = outputEncode
 	
+	# Check custom range
+	if not len("".join(set(args.range))) >= 10:
+		arg.error("range must contain at least 10 characters")
+		sys.exit(1) #Exit with minor error
+	else:
+		flags = []
+		for char in args.range:
+			if args.range.count(char) > 1:
+				if not char in flags:
+					flags.append(char)
+		if flags:
+			print("One (or more) characters appeared more than once: %s (extra occurrences will be stripped)" % ", ".join(flags))
+	args.range = "".join(sorted(set(args.range)))
 
 argumentChecker() # Run the function we just created. We only created it for organazation
 
@@ -187,7 +214,7 @@ def percentage(part, whole): # Used for the loading bars in the debug output
 
 # Link START!!! :D
 if args.debug and (args.echo == False):
-	print("===== Cyan's FireCoder v%s - A Cyanite Project =====\n" % version) # Title echo
+	printTitle()
 
 # Debug mode?
 if args.debug:
@@ -205,23 +232,6 @@ psa = hashlib.sha256((ppw1[::-1]+args.p+ppw2).encode()).hexdigest()
 
 #Password echo
 debug(">Password: %s\n>Salt: %s\n>HASH: %s" % (args.p,args.salt,psa)) # Print Debug info
-
-# This is for the dictionary generators
-debug(">Loading generation variables..") # Print Debug info
-l = (string.digits +
-	string.ascii_letters +
-	string.punctuation.replace('"','')
-		.replace("'",'')
-		.replace("[",'')
-		.replace("]",'')
-		.replace("{",'')
-		.replace("}",'')
-		.replace("(",'')
-		.replace(")",''))
-l2 = [i for i in string.printable+'\x00']
-
-debug(">Done.") # Print Debug info
-
 
 # Modifiers
 
@@ -250,7 +260,7 @@ def replace_all(string, dic, mode=True):
 
 
 def gen_keys(HASH,char='A',mode=True):
-	"""Generates a dictonary with a key/value for each item in 'l' ('l' is a string of legal characters)
+	"""Generates a dictonary with a key/value for each item in 'args.range' ('args.range' is a string of legal characters)
 
 	This is used to convert each item in a string into another character, and back.
 
@@ -269,10 +279,10 @@ def gen_keys(HASH,char='A',mode=True):
 
 	r.seed(hashlib.sha1((str(char)+str(HASH)).encode()).hexdigest())
 	m,d = [],{}
-	for i in l:
-		c = r.choice(l)
+	for i in args.range:
+		c = r.choice(args.range)
 		while c in m:
-			c = r.choice(l)
+			c = r.choice(args.range)
 		m.append(c)
 		if mode:
 			d[i] = c
@@ -281,7 +291,7 @@ def gen_keys(HASH,char='A',mode=True):
 	return d
 
 def gen_codes(HASH,char='A',mode=True):
-	"""Generates a dictonary with a key/value for each item in 'l2' ('l2' is a list of legal characters)
+	"""Generates a dictonary with a key/value for each item in 'letterList' ('letterList' is a list of legal characters)
 
 	This is different from gen_keys() in that it is used to convert each item in a string into a two-digit code, and back.
 
@@ -305,10 +315,10 @@ def gen_codes(HASH,char='A',mode=True):
 	s = ps.hexdigest()
 	r.seed(s)
 	m,d = [],{}
-	for i in l2:
-		c = r.choice(l)+r.choice(l)
+	for i in letterList:
+		c = r.choice(args.range)+r.choice(args.range)
 		while c in m:
-			c = r.choice(l)+r.choice(l)
+			c = r.choice(args.range)+r.choice(args.range)
 		m.append(c)
 		if mode:
 			d[i] = c
@@ -365,7 +375,7 @@ def simpleStringReverse(string):
 	return string[::-1]
 
 def StringStripper(string, mode=True):
-	"""In encode mode; removes any charaters not found in 'l2' ('l2' is a list of legal characters) and replaces them with a '?'.
+	"""In encode mode; removes any charaters not found in 'letterList' ('letterList' is a list of legal characters) and replaces them with a '?'.
 
 	In both modes; calls replace_all() with gen_codes() as the dictionary. (This sets/unsets all characters into two digit codes)
 
@@ -383,7 +393,7 @@ def StringStripper(string, mode=True):
 	"""
 
 	if args.e:
-		string = ''.join(char if char in l2 else '?' for char in string)
+		string = ''.join(char if char in letterList else '?' for char in string)
 	return replace_all(string, gen_codes(psa,"l",mode), mode)
 
 
@@ -520,10 +530,10 @@ def mcc_util(n,HASH,mode=True):
 	r.seed(s)
 	m,d,L = [],{},[]
 	for s in range(n):
-		for i in l:
-			c = r.choice(l)
+		for i in args.range:
+			c = r.choice(args.range)
 			while c in m:
-				c = r.choice(l)
+				c = r.choice(args.range)
 			m.append(c)
 			if mode:
 				d[i] = c
@@ -781,14 +791,14 @@ def finishingTouches(outputfile="output.cfc"): # For writing files:
 		with open(args.I, 'r+b') as f:
 			for i in f.read():
 				f.seek(0)
-				ou = random.choice(l)+ou+random.choice(l)
+				ou = random.choice(args.range)+ou+random.choice(args.range)
 				f.write(ou)
 			for i in range(15):
 				ou = ''
 				with open(args.I, 'r+b') as f:
 					for i in f.read():
 						f.seek(0)
-						ou = random.choice(l)+ou
+						ou = random.choice(args.range)+ou
 					f.write(ou)
 		os.remove(args.I)
 

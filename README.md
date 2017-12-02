@@ -1,5 +1,5 @@
 
-Firecoder is a command-line app that uses a combination of procedural cyphers, and (optional) user-configurable encryption sequences, and (soon) custom character ranges (UTF-8) that the encryption can encode as.
+Firecoder is a command-line app that uses a combination of procedural cyphers, and (optional) user-configurable encryption sequences, and custom character ranges (UTF-8) that the encryption can encode as.
 
 #### Sequences:
 
