@@ -1,5 +1,6 @@
+## Firecoder - Procedual Data Encryption
 
-Firecoder is a command-line app that uses a combination of procedural cyphers, and (optional) user-configurable encryption sequences, and custom character ranges (UTF-8) that the encryption can encode as.
+Firecoder is a command-line app that uses a combination of procedural cyphers, and (optional) user-configurable encryption sequences, and custom (UTF-8) character ranges that the encryption can encode as.
 
 #### Sequences:
 
@@ -38,7 +39,7 @@ Firecoder is a command-line app that uses a combination of procedural cyphers, a
 Ranges are simple statements that restrict or expand the available characters that can be used during encryption. An example of a custom range would be something like: "abcd12345-" Though, you could do something much more complex than this.
 ### 
 
-	Here are characters in the default range:
+	Here are the characters in the default range:
 	0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&*+,-./:;<=>?@\^_`|~
 
 
@@ -63,3 +64,6 @@ Ranges are simple statements that restrict or expand the available characters th
 ##### Custom sequence + custom range of legal characters (No Unicode Support)
 	>> firecoder_main.py -i "This is a test!!" -e -p password!!! —seq "!**/*//*/*!/~/*~/*!" —range "abcd12345-"
 	dac35254--5-131b-4-ac51ab55b31db
+
+###### I am not paid to work on Firecoder, nor do I have a regular job. If you would like to help support me and Firecoder, please consiter donating:
+http://paypal.me/TheCyaniteProject
