@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.4"
+version = "4.5"
 
 # Imports
 import os
 import re
 import sys
 import time
+import zlib
 import base64
 import string
 import random
@@ -25,14 +26,17 @@ legal_seq_chars  = "?!*/~"
 exe = ".cfc"
 default_letters = (string.digits +
 	string.ascii_letters +
-	string.punctuation.replace('"','')
+	string.punctuation
+		.replace('"','')
 		.replace("'",'')
 		.replace("[",'')
 		.replace("]",'')
 		.replace("{",'')
 		.replace("}",'')
 		.replace("(",'')
-		.replace(")",''))
+		.replace(")",'')
+		.replace(":",'')
+		.replace(";",''))
 letterList = [i for i in string.printable]
 
 
@@ -467,16 +471,22 @@ If this problem persists, please file an issue: https://github.com/TheCyanitePro
 # Read file
 if not args.I == None:
 	debug(">Reading input file..") # Print Debug info
-	try:
-		with open(args.I, 'r', encoding='ascii') as inFile: # non-binary
-			inputstring = inFile.read()
-	except:
+
+	if args.d:
+		with open(args.I, 'rb') as inFile: # binary
+			inputstring = "".join(map(chr, zlib.decompress(inFile.read())))
+			#inputstring = inFile.read() # COMPRESSION-TEST
+	else:
 		try:
-			with open(args.I, 'r', encoding='utf-8-sig') as inFile: # non-binary
+			with open(args.I, 'r', encoding='ascii') as inFile: # non-binary
 				inputstring = inFile.read()
 		except:
-			with open(args.I, 'rb') as inFile: # binary
-				inputstring = "".join(map(chr, inFile.read()))
+			try:
+				with open(args.I, 'r', encoding='utf-8-sig') as inFile: # non-binary
+					inputstring = inFile.read()
+			except:
+				with open(args.I, 'rb') as inFile: # binary
+					inputstring = "".join(map(chr, inFile.read()))
 	debug(">Opened file '%s'" % (args.I)) # Print Debug info
 else: inputstring = args.i
 
@@ -763,12 +773,10 @@ def finishingTouches(outputfile="output.cfc"): # For writing files:
 		source = source.encode(args.codec).decode('unicode-escape').encode(args.codec)
 		altmode = False
 	except (OverflowError, UnicodeDecodeError, UnicodeEncodeError):
-		print(1)
 		try:
 			source = source.encode(args.codec)
 			altmode = False
 		except Exception as ex:
-			print(2)
 			try:
 				source = source.encode("ascii")
 				altmode = True
@@ -782,7 +790,11 @@ def finishingTouches(outputfile="output.cfc"): # For writing files:
 			debug(">Changes saved to: %s | w/ w" % outputfile) # Print Debug info
 	else:
 		with open(outputfile, 'wb') as outFile:
-			outFile.write(bytes(source))
+			if args.e:
+				outFile.write(zlib.compress(source))
+				#outFile.write(source) # COMPRESSION-TEST
+			else:
+				outFile.write(bytes(source))
 			debug(">Changes saved to: %s | w/ wb" % outputfile) # Print Debug info
 
 	if args.remove:
