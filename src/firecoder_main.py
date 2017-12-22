@@ -354,7 +354,7 @@ def magicEggScrambler(string, mode=True):
 	if mode:
 		l = list(string)
 		r.seed(hashlib.sha1(psa.encode()).hexdigest())
-		r.shuffle(l)
+		r.shuffle(l) # Every day I'm shufflinnnnn~
 		return ''.join(l)
 	else:
 		l = list(string)
