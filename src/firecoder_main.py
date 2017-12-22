@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.5"
+version = "4.6"
 
 # Imports
 import os
 import re
 import sys
 import time
+import math
 import zlib
 import base64
 import string
@@ -39,6 +40,7 @@ default_letters = (string.digits +
 		.replace(";",''))
 letterList = [i for i in string.printable]
 
+default_rangelen = (math.ceil(math.log(len(letterList), len(default_letters))))
 
 seq_help = '''\tSequence help. This is a list of all flags and what they do.
 	(Non-Sequence Characters will raise an error)
@@ -87,6 +89,7 @@ arg.add_argument("-p", metavar=("PASSWORD"), help="specify the password", defaul
 arg.add_argument("--salt", help="add a custom salt (default is the reversed password)", default=False)
 arg.add_argument("--seq", metavar=("SEQUENCE"), help="set a custom encryption sequence - pass: '--seqhelp' for more info - default sequence: %s" % default_sequence, default=default_sequence)
 arg.add_argument("--range", metavar=("CHARACTERS"), help="set a custom ASCII character range to be used during encription, this range will be sampled repeatedly and will change the resulting output (minumum of 10 characters, utf-8 compatable) - default uses the entire ASCII range, minus: '\"[]{}()", default=default_letters)
+arg.add_argument("--rangelen", help="length for each character (TODO: ADD DISC LATER) - default length: %s" % default_rangelen, default=default_rangelen)
 arg.add_argument("--codec", help="set a custom codec for writing files - list of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html - default codec: %s" % outputEncode, default=None)
 arg.add_argument("--seqhelp", help="prints help related to how sequences work, and what each character does, and then exits", action="store_true")
 arg.add_argument("--echo", help="prints extra info (including the current password and HASH in plain text)", action="store_true")
@@ -151,8 +154,8 @@ def argumentChecker():
 		args.codec = outputEncode
 	
 	# Check custom range
-	if not len("".join(set(args.range))) >= 10:
-		arg.error("range must contain at least 10 characters")
+	if not int(args.rangelen) >= (math.ceil(math.log(len(letterList), len("".join(set(args.range)))))):
+		arg.error("range length must be at least %s" % (math.ceil(math.log(len(letterList), len("".join(set(args.range)))))))
 		sys.exit(1) #Exit with minor error
 	else:
 		flags = []
@@ -301,7 +304,7 @@ def gen_codes(HASH,char='A',mode=True):
 
 	(For use when not handling unicode)
 
-    :Parameters:: 
+    :Parameters::
 
     	char -- A character to combine with the hash (default: 'A')
 
@@ -320,9 +323,9 @@ def gen_codes(HASH,char='A',mode=True):
 	r.seed(s)
 	m,d = [],{}
 	for i in letterList:
-		c = r.choice(args.range)+r.choice(args.range)
+		c = "".join([r.choice(args.range) for i in range(int(args.rangelen))])
 		while c in m:
-			c = r.choice(args.range)+r.choice(args.range)
+			c = "".join([r.choice(args.range) for i in range(int(args.rangelen))])
 		m.append(c)
 		if mode:
 			d[i] = c
