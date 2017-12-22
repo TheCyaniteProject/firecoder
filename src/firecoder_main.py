@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.6"
+version = "4.7"
 
 # Imports
 import os
@@ -17,13 +17,17 @@ import random
 import hashlib
 import argparse
 
+if not __name__ == "__main__":
+	print("Don't import me! Bad!")
+	sys.exit(2)
+
 # Variables
 r = random.Random()
 start = time.time()
 errorflag = False
 outputEncode = 'utf-8' # List of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html
 default_sequence = "?!*/~*/~*!/*"
-legal_seq_chars  = "?!*/~"
+legal_seq_chars  = "?!*/~[]"
 exe = ".cfc"
 default_letters = (string.digits +
 	string.ascii_letters +
@@ -39,6 +43,7 @@ default_letters = (string.digits +
 		.replace(":",'')
 		.replace(";",''))
 letterList = [i for i in string.printable]
+stashList = []
 
 default_rangelen = (math.ceil(math.log(len(letterList), len(default_letters))))
 
@@ -96,6 +101,8 @@ arg.add_argument("--echo", help="prints extra info (including the current passwo
 arg.add_argument("--debug", help="enables debug mode (this attemps to backtrack the encrption at each step to make sure decryption is possible)", action="store_true")
 arg.add_argument("--remove", help="deletes the input file after compleation", action="store_true")
 args = arg.parse_args()
+
+
 
 # Title, Help & Exit if no arguments are passed
 if len(sys.argv)==1:
@@ -261,7 +268,7 @@ def replace_all(string, dic, mode=True):
 	"""
 
 	if not mode:
-		string = [string[i:i + 2] for i in range(0, len(string), 2)]
+		string = [string[i:i + int(args.rangelen)] for i in range(0, len(string), int(args.rangelen))]
 	return ''.join(str(dic.get(word, word)) for word in string)
 
 
@@ -590,6 +597,23 @@ def magicCharacterChanger(string, mode=True):
 		print("Error: Found unknown character in source while enumerating cypher dictionary: %s\nThis may be a result of loading a .cfc file saved as Unicode. If so, try sanitizing the file and try again." % ex)
 		sys.exit(2)
 
+def split(s):
+    half, rem = divmod(len(s), 2)
+    return s[:half + rem], s[half + rem:]
+def sourceStasher(source, array, mode=True):
+	if mode:
+		if len(source) >= 8:
+			firstpart, secondpart = split(source)
+			array.insert(0,secondpart)
+			return firstpart
+		else:
+			debug("Warn: Source too short to split, skipping.")
+			array.insert(0,"")
+			return source
+	output = source+array[0]
+	array.pop(0)
+	return output
+
 def printdebug(value=False):
 	"""
 	
@@ -621,6 +645,12 @@ for char in args.seq:
 		print('Error: illegal sequence character: "%s" in position: %i' % (char, pos))
 		sys.exit(2)
 	pos += 1
+if args.seq.count("[") > args.seq.count("]"):
+	print('Error: missing closing bracket: "]"')
+	sys.exit(2)
+elif args.seq.count("[") < args.seq.count("]"):
+	print('Error: missing opening bracket: "["')
+	sys.exit(2)
 if "?" in args.seq:
 	if args.seq.count("?") > 1:
 		print('Error: illegal sequence action: "?" can only be used once')
@@ -694,6 +724,10 @@ for char in args.seq:
 					ssrvar = 1
 				print(">>Attempting to backtrack simpleStringReverse(): %i/%i" % (ssrvar, args.seq.count('~')))
 				printdebug(backtrack == simpleStringReverse(source))
+		elif char == "[":
+			source = sourceStasher(source, stashList, True)
+		elif char == "]":
+			source = sourceStasher(source, stashList, False)
 		pos += 1
 	elif args.d:
 		if char == "?":
@@ -747,6 +781,10 @@ for char in args.seq:
 					ssrvar = 1
 				print(">>Attempting to backtrack simpleStringReverse(): %i/%i" % (ssrvar, args.seq.count('~')))
 				printdebug(backtrack == simpleStringReverse(source))
+		elif char == "[":
+			source = sourceStasher(source, stashList, False)
+		elif char == "]":
+			source = sourceStasher(source, stashList, True)
 		pos -= 1
 	else:
 		print('Error: critical unknown error while parsing sequence: "%s" please file an issue!! https://github.com/TheCyaniteProject/firecoder/issues' % args.seq)
