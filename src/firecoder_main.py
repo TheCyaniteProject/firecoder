@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.7"
+version = "4.8"
 
 # Imports
+import re
+
 import os
 import re
 import sys
@@ -604,13 +606,13 @@ def sourceStasher(source, array, mode=True):
 	if mode:
 		if len(source) >= 8:
 			firstpart, secondpart = split(source)
-			array.insert(0,secondpart)
+			array.append(secondpart)
 			return firstpart
 		else:
 			debug("Warn: Source too short to split, skipping.")
-			array.insert(0,"")
+			array.append("")
 			return source
-	output = source+array[0]
+	output = source+array[len(array)-1]
 	array.pop(0)
 	return output
 
@@ -643,21 +645,31 @@ pos = 1
 for char in args.seq:
 	if char not in legal_seq_chars:
 		print('Error: illegal sequence character: "%s" in position: %i' % (char, pos))
-		sys.exit(2)
+		sys.exit(1)
 	pos += 1
-if args.seq.count("[") > args.seq.count("]"):
-	print('Error: missing closing bracket: "]"')
-	sys.exit(2)
-elif args.seq.count("[") < args.seq.count("]"):
-	print('Error: missing opening bracket: "["')
-	sys.exit(2)
+
+
+bracketlist = []
+for pos, val in enumerate(args.seq):
+	if val == "[":
+		bracketlist.append(pos)
+	elif val == "]":
+		if len(bracketlist) == 0:
+			print("Error: Misformated bracket(s): ] in position: %s" % (pos+1))
+			sys.exit(1)
+		else:
+			bracketlist.pop()
+if len(bracketlist) != 0:
+	print("Error: Misformated bracket(s): [ in position: %s" % (bracketlist.pop()+1))
+	sys.exit(1)
+
 if "?" in args.seq:
 	if args.seq.count("?") > 1:
 		print('Error: illegal sequence action: "?" can only be used once')
-		sys.exit(2)
+		sys.exit(1)
 	elif not args.seq.startswith("?"):
 		print('Error: illegal sequence action: "?" must be the first character of the sequence')
-		sys.exit(2)
+		sys.exit(1)
 else:
 	if args.e:
 		source = StringStripper(source, True)
@@ -665,14 +677,8 @@ else:
 
 # Sequence Processing
 
-if args.d:
-	args.seq = simpleStringReverse(args.seq)
-
-pos = 1
-if args.d:
-	pos = len(args.seq)
-for char in args.seq:
-	if args.e:
+if args.e:
+	for pos, char in enumerate(args.seq):
 		if char == "?":
 			if args.debug:
 				backtrack = source
@@ -728,8 +734,8 @@ for char in args.seq:
 			source = sourceStasher(source, stashList, True)
 		elif char == "]":
 			source = sourceStasher(source, stashList, False)
-		pos += 1
-	elif args.d:
+elif args.d:
+	for pos, char in [(n, args.seq[n]) for n in reversed(range(len(args.seq)))]:
 		if char == "?":
 			if args.debug:
 				backtrack = source
@@ -785,9 +791,8 @@ for char in args.seq:
 			source = sourceStasher(source, stashList, False)
 		elif char == "]":
 			source = sourceStasher(source, stashList, True)
-		pos -= 1
-	else:
-		print('Error: critical unknown error while parsing sequence: "%s" please file an issue!! https://github.com/TheCyaniteProject/firecoder/issues' % args.seq)
+else:
+	print('Error: critical unknown error while parsing sequence: "%s" please file an issue!! https://github.com/TheCyaniteProject/firecoder/issues' % args.seq)
 
 if args.d:
 	if not "?" in args.seq:
