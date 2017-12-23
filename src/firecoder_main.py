@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.8"
+version = "4.9"
 
 # Imports
 import re
@@ -677,120 +677,40 @@ else:
 
 # Sequence Processing
 
+def backtrackDebugger(title, char, booleanCheck):
+	if args.debug:
+		print(">>Attempting to backtrack %s(): %i/%i" % (title, args.seq[:pos+1].count(char), args.seq.count(char)))
+		printdebug(booleanCheck)
+
+def parseChar(pos, char, mode=True):
+	global source
+	backtrack = source
+	if char == "?":
+		source = fireCoderMethod(source, mode)
+		backtrackDebugger("fireCoderMethod", '?', (backtrack == fireCoderMethod(source, (not mode))))
+	elif char == "!":
+		source = magicCharacterChanger(source, mode)
+		backtrackDebugger('magicCharacterChanger', '!', (backtrack == magicCharacterChanger(source, (not mode))))
+	elif char == "*":
+		source = magicEggScrambler(source, mode)
+		backtrackDebugger('magicEggScrambler', '*', (backtrack == magicEggScrambler(source, (not mode))))
+	elif char == "/":
+		source = magicEncodingTrick(source, str(pos)+ppw2, mode)
+		backtrackDebugger('magicEncodingTrick', '/', (backtrack == magicEncodingTrick(source, str(pos)+ppw2, (not mode))))
+	elif char == "~":
+		source = simpleStringReverse(source)
+		backtrackDebugger('simpleStringReverse', '~', (backtrack == simpleStringReverse(source)))
+	elif char == "[":
+		source = sourceStasher(source, stashList, mode)
+	elif char == "]":
+		source = sourceStasher(source, stashList, (not mode))
+
 if args.e:
 	for pos, char in enumerate(args.seq):
-		if char == "?":
-			if args.debug:
-				backtrack = source
-			source = fireCoderMethod(source, True)
-			if args.debug:
-				print(">>Attempting to backtrack fireCoderMethod(): 1/1")
-				printdebug(backtrack == fireCoderMethod(source, False))
-		elif char == "!":
-			if args.debug:
-				backtrack = source
-			source = magicCharacterChanger(source, True)
-			if args.debug:
-				try:
-					escvar += 1
-				except:
-					escvar = 1
-				print(">>Attempting to backtrack magicCharacterChanger(): %i/%i" % (escvar, args.seq.count('!')))
-				printdebug(backtrack == magicCharacterChanger(source, False))
-		elif char == "*":
-			if args.debug:
-				backtrack = source
-			source = magicEggScrambler(source, True)
-			if args.debug:
-				try:
-					eggvar += 1
-				except:
-					eggvar = 1
-				print(">>Attempting to backtrack magicEggScrambler(): %i/%i" % (eggvar, args.seq.count('*')))
-				printdebug(backtrack == magicEggScrambler(source, False))
-		elif char == "/":
-			if args.debug:
-				backtrack = source
-			source = magicEncodingTrick(source, str(pos)+ppw2, True)
-			if args.debug:
-				try:
-					metvar += 1
-				except:
-					metvar = 1
-				print(">>Attempting to backtrack magicEncodingTrick(): %i/%i" % (metvar, args.seq.count('/')))
-				printdebug(backtrack == magicEncodingTrick(source, str(pos)+ppw2, False))
-		elif char == "~":
-			if args.debug:
-				backtrack = source
-			source = simpleStringReverse(source)
-			if args.debug:
-				try:
-					ssrvar += 1
-				except:
-					ssrvar = 1
-				print(">>Attempting to backtrack simpleStringReverse(): %i/%i" % (ssrvar, args.seq.count('~')))
-				printdebug(backtrack == simpleStringReverse(source))
-		elif char == "[":
-			source = sourceStasher(source, stashList, True)
-		elif char == "]":
-			source = sourceStasher(source, stashList, False)
+		parseSequence(pos, char, True)
 elif args.d:
 	for pos, char in [(n, args.seq[n]) for n in reversed(range(len(args.seq)))]:
-		if char == "?":
-			if args.debug:
-				backtrack = source
-			source = fireCoderMethod(source, False)
-			if args.debug:
-				print(">>Attempting to backtrack fireCoderMethod(): 1/1")
-				printdebug(backtrack == fireCoderMethod(source, True))
-		elif char == "!":
-			if args.debug:
-				backtrack = source
-			source = magicCharacterChanger(source, False)
-			if args.debug:
-				try:
-					escvar += 1
-				except:
-					escvar = 1
-				print(">>Attempting to backtrack magicCharacterChanger(): %i/%i" % (escvar, args.seq.count('!')))
-				printdebug(backtrack == magicCharacterChanger(source, True))
-		elif char == "*":
-			if args.debug:
-				backtrack = source
-			source = magicEggScrambler(source, False)
-			if args.debug:
-				try:
-					eggvar += 1
-				except:
-					eggvar = 1
-				print(">>Attempting to backtrack magicEggScrambler(): %i/%i" % (eggvar, args.seq.count('*')))
-				printdebug(backtrack == magicEggScrambler(source, True))
-		elif char == "/":
-			if args.debug:
-				backtrack = source
-			source = magicEncodingTrick(source, str(pos)+ppw2, False)
-			if args.debug:
-				try:
-					metvar += 1
-				except:
-					metvar = 1
-				print(">>Attempting to backtrack magicEncodingTrick(): %i/%i" % (metvar, args.seq.count('/')))
-				printdebug(backtrack == magicEncodingTrick(source, str(pos)+ppw2, True))
-		elif char == "~":
-			if args.debug:
-				backtrack = source
-			source = simpleStringReverse(source)
-			if args.debug:
-				try:
-					ssrvar += 1
-				except:
-					ssrvar = 1
-				print(">>Attempting to backtrack simpleStringReverse(): %i/%i" % (ssrvar, args.seq.count('~')))
-				printdebug(backtrack == simpleStringReverse(source))
-		elif char == "[":
-			source = sourceStasher(source, stashList, False)
-		elif char == "]":
-			source = sourceStasher(source, stashList, True)
+		parseSequence(pos, char, False)	
 else:
 	print('Error: critical unknown error while parsing sequence: "%s" please file an issue!! https://github.com/TheCyaniteProject/firecoder/issues' % args.seq)
 
