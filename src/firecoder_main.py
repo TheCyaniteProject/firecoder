@@ -30,6 +30,7 @@ errorflag = False
 outputEncode = 'utf-8' # List of available codecs: https://docs.python.org/2.4/lib/standard-encodings.html
 default_sequence = "?!*/~*/~*!/*"
 legal_seq_chars  = "?!*/~[]"
+defaultPrime = 17 # A prime number: Larger = more secure, but slower.
 exe = ".cfc"
 default_letters = (string.digits +
 	string.ascii_letters +
@@ -45,7 +46,6 @@ default_letters = (string.digits +
 		.replace(":",'')
 		.replace(";",''))
 letterList = [i for i in string.printable]
-stashList = []
 range_shortcuts = {
 	"?a" : string.ascii_lowercase,
 	"?A" : string.ascii_uppercase,
@@ -53,6 +53,7 @@ range_shortcuts = {
 	"?s" : "!#$%&*+,-./<=>?@\\^_`|~",
 	"?S" : "():;[\"]{'}"
 	}
+stashList = [] # We pre-define this to make things easier..
 
 
 default_rangelen = (math.ceil(math.log(len(letterList), len(default_letters))))
@@ -557,36 +558,9 @@ def magicEncodingTrick(string, HASH, mode=True):
 		run = 0
 	return string
 
-def mcc_util(n,HASH,mode=True):
-	pps = args.salt+HASH
-	ps = hashlib.md5(pps.encode())
-	s = ps.hexdigest()
-	r.seed(s)
-	m,d,L = [],{},[]
-	for s in range(n):
-		for i in args.range:
-			c = r.choice(args.range)
-			while c in m:
-				c = r.choice(args.range)
-			m.append(c)
-			if mode:
-				d[i] = c
-			else:
-				d[c] = i
-		L.append(d)
-		m,d = [],{}
-	return L
-
-# shiL should be lower than shiH - prime numbers only. (the higher the better)
-shiL = 7
-shiH = 11
-endicnum1,endicnum2 = mcc_util(shiL,psa),mcc_util(shiH,psa)
-dedicnum1,dedicnum2 = mcc_util(shiL,psa,False),mcc_util(shiH,psa,False)
  
-def magicCharacterChanger(string, mode=True):
-	"""Changes the characters in the input string using theor position. (Would have a better description, but I've forgotten how it works..)
-
-	This is slow, but very effective!
+def magicCharacterChanger(string, HASH, prime=2, mode=True):
+	""" TODO: Describe :D
 
 	:Sequence Character:: ! (This function's character when calling in a custom sequence)
 
@@ -600,13 +574,23 @@ def magicCharacterChanger(string, mode=True):
 	
 	:Author:: Allison Smith
 	"""
+	listOfDictionaries = []
+	output = ''
 	try:
-		if mode:
-			mcc = ''.join(endicnum1[i%shiL][c] for i,c in enumerate(string))
-			return ''.join(endicnum2[i%shiH][c] for i,c in enumerate(mcc))
-		else:
-			mcc = ''.join(dedicnum2[i%shiH][c] for i,c in enumerate(string))
-			return ''.join(dedicnum1[i%shiL][c] for i,c in enumerate(mcc))
+		for i in range(prime):
+			listOfDictionaries.append(gen_keys(HASH, str(i), mode))
+		# Here we cut the input into segments that are the same length as the prime
+		stringList = [string[i:i+prime] for i in range(0, len(string), prime)]
+		for segment in stringList:
+			print(len(listOfDictionaries))
+			for i in range(len(segment)):
+				print(len(segment))
+				segment = replace_all(segment[i], listOfDictionaries[i], mode)
+				segment = replace_all(segment, listOfDictionaries[i], mode)
+				output = output+segment
+		return output
+				
+
 	except KeyError as ex:
 		print("Error: Found unknown character in source while enumerating cypher dictionary: %s\nThis may be a result of loading a .cfc file saved as Unicode. If so, try sanitizing the file and try again." % ex)
 		sys.exit(2)
@@ -701,7 +685,7 @@ def parseChar(pos, char, mode=True):
 		source = fireCoderMethod(source, mode)
 		backtrackDebugger("fireCoderMethod", '?', (backtrack == fireCoderMethod(source, (not mode))))
 	elif char == "!":
-		source = magicCharacterChanger(source, mode)
+		source = magicCharacterChanger(source, str(pos)+ppw1, defaultPrime, mode)
 		backtrackDebugger('magicCharacterChanger', '!', (backtrack == magicCharacterChanger(source, (not mode))))
 	elif char == "*":
 		source = magicEggScrambler(source, mode)
