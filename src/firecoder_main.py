@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.X" # Because X is the cool new thing to do. Damn, I should've skiped version 4.9..
+version = "4.XI" # Because X is the cool new thing to do. Damn, I should've skiped version 4.9..
 
 # Imports
 import re
@@ -189,6 +189,9 @@ def argumentChecker():
 
 argumentChecker() # Run the function we just created. We only created it for organazation
 
+if args.debug or args.echo:
+	printTitle()
+
 # These messages will be printed if --echo is passed
 def debug(string="Default text"):
 	"""Print string if args.echo(--echo argument)
@@ -240,8 +243,6 @@ def percentage(part, whole): # Used for the loading bars in the debug output
 	return 100 * float(part)/float(whole)
 
 # Link START!!! :D
-if args.debug and (args.echo == False):
-	printTitle()
 
 # Debug mode?
 if args.debug:
