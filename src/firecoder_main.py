@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "4.9"
+version = "4.X" # Because X is the cool new thing to do. Damn, I should've skiped version 4.9..
 
 # Imports
 import re
@@ -46,6 +46,14 @@ default_letters = (string.digits +
 		.replace(";",''))
 letterList = [i for i in string.printable]
 stashList = []
+range_shortcuts = {
+	"?a" : string.ascii_lowercase,
+	"?A" : string.ascii_uppercase,
+	"?d" : string.digits,
+	"?s" : "!#$%&*+,-./<=>?@\\^_`|~",
+	"?S" : "():;[\"]{'}"
+	}
+
 
 default_rangelen = (math.ceil(math.log(len(letterList), len(default_letters))))
 
@@ -163,6 +171,9 @@ def argumentChecker():
 		args.codec = outputEncode
 	
 	# Check custom range
+	for flag, chars in range_shortcuts.items():
+		if flag in args.range:
+			args.range = args.range.replace(flag, chars)
 	if not int(args.rangelen) >= (math.ceil(math.log(len(letterList), len("".join(set(args.range)))))):
 		arg.error("range length must be at least %s" % (math.ceil(math.log(len(letterList), len("".join(set(args.range)))))))
 		sys.exit(1) #Exit with minor error
@@ -640,13 +651,13 @@ def printdebug(value=False):
 source = inputstring
 
 
+
+
 # Initial pass, check sequence formatting.
-pos = 1
-for char in args.seq:
+for pos, char in enumerate(args.seq):
 	if char not in legal_seq_chars:
-		print('Error: illegal sequence character: "%s" in position: %i' % (char, pos))
+		print('Error: illegal sequence character: "%s" in position: %i' % (char, pos+1))
 		sys.exit(1)
-	pos += 1
 
 
 bracketlist = []
@@ -707,10 +718,10 @@ def parseChar(pos, char, mode=True):
 
 if args.e:
 	for pos, char in enumerate(args.seq):
-		parseSequence(pos, char, True)
+		parseChar(pos, char, True)
 elif args.d:
 	for pos, char in [(n, args.seq[n]) for n in reversed(range(len(args.seq)))]:
-		parseSequence(pos, char, False)	
+		parseChar(pos, char, False)	
 else:
 	print('Error: critical unknown error while parsing sequence: "%s" please file an issue!! https://github.com/TheCyaniteProject/firecoder/issues' % args.seq)
 

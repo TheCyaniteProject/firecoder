@@ -42,6 +42,14 @@ Ranges are simple statements that restrict or expand the available characters th
 	Here are the characters in the default range:
 	0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&*+,-./:;<=>?@\^_`|~
 
+---
+	Here are some range_shortcuts to help you on your way:
+	"?a" - abcdefghijklmnopqrstuvwxyz
+	"?A" - ABCDEFGHIJKLMNOPQRSTUVWXYZ
+	"?d" - 1234567890
+	"?s" - "!#$%&*+,-./<=>?@\\^_`|~"
+	"?S" - "():;[\"]{'}"
+
 
 #### Here are a few examples:
 
