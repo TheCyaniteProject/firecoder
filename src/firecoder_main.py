@@ -570,26 +570,49 @@ def magicCharacterChanger(string, HASH, prime=2, mode=True):
 
 		mode -- True/False is the script running in encoding mode? (default: True)
 
-	:Date:: 11/14/2017
+	:Date:: 1/7/2018
 	
-	:Author:: Allison Smith
+	:Author:: Oliver, from devRant
 	"""
 	listOfDictionaries = []
 	output = ''
+	'''
+	ekucofhbehlsejhlc
+	bczeevvtbleoqplqx
+	lyytxnzcpnxbkwvob
+	nlfogyfimungdxeit
+	bgzvezvubretqgljx
+	xicswugpypzytrwza
+	''' #debug
 	try:
 		for i in range(prime):
 			listOfDictionaries.append(gen_keys(HASH, str(i), mode))
 		# Here we cut the input into segments that are the same length as the prime
 		stringList = [string[i:i+prime] for i in range(0, len(string), prime)]
-		for segment in stringList:
-			print(len(listOfDictionaries))
-			for i in range(len(segment)):
-				print(len(segment))
-				segment = replace_all(segment[i], listOfDictionaries[i], mode)
-				segment = replace_all(segment, listOfDictionaries[i], mode)
-				output = output+segment
+		if mode:
+			for segment in stringList:
+				try:
+					segment = replace_all(segment, gen_keys(segment2, 'r', mode), mode)
+				except:
+					pass
+				segment2 = ''
+				for i in range(len(segment)):
+					rep = replace_all(segment[i], listOfDictionaries[i], mode)
+					segment2 += rep
+				output += segment2
+		else:
+			for segment in stringList:
+				segment2 = ''
+				for i in range(len(segment)):
+					rep = replace_all(segment[i], listOfDictionaries[i], mode)
+					segment2 += rep
+				try:
+					output += replace_all(segment2, gen_keys(rep2, 'r', mode), mode)
+				except:
+					output += segment2
+				rep2 = segment
+					
 		return output
-				
 
 	except KeyError as ex:
 		print("Error: Found unknown character in source while enumerating cypher dictionary: %s\nThis may be a result of loading a .cfc file saved as Unicode. If so, try sanitizing the file and try again." % ex)
