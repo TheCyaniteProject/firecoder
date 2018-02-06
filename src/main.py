@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # Cyan's FireCoder - A CYANITE PROJECT
 
-version = "5.0"
+version = "5.1"
 
 # Imports
 import re
@@ -111,6 +111,7 @@ arg.add_argument("--seqhelp", help="prints help related to how sequences work, a
 arg.add_argument("--echo", help="prints extra info (including the current password and HASH in plain text)", action="store_true")
 arg.add_argument("--debug", help="enables debug mode (this attemps to backtrack the encrption at each step to make sure decryption is possible)", action="store_true")
 arg.add_argument("--remove", help="deletes the input file after compleation", action="store_true")
+arg.add_argument("-c", "--compress", help="Compresses the encrypted file when saving.", action="store_true")
 args = arg.parse_args()
 
 
@@ -499,8 +500,10 @@ if not args.I == None:
 
     if args.d:
         with open(args.I, 'rb') as inFile: # binary
-            inputstring = "".join(map(chr, zlib.decompress(inFile.read())))
-            #inputstring = inFile.read() # COMPRESSION-TEST
+            if args.compress: # COMPRESSION-TEST
+                inputstring = "".join(map(chr, zlib.decompress(inFile.read())))
+            else:
+                inputstring = inFile.read()
     else:
         try:
             with open(args.I, 'r', encoding='ascii') as inFile: # non-binary
@@ -609,7 +612,8 @@ def magicCharacterChanger(string, HASH, prime=5, mode=True):
         return output
 
     except KeyError as ex:
-        print("Error: Found unknown character in source while enumerating cypher dictionary: %s\nThis may be a result of loading a .cfc file saved as Unicode. If so, try sanitizing the file and try again." % ex)
+        print("""Error: Found unknown character in source while enumerating cypher dictionary: %s
+This may be a result of loading a .cfc file saved as Unicode. If so, try sanitizing the file and try again.""" % ex)
         sys.exit(2)
 
 def split(s):
@@ -635,8 +639,10 @@ def printdebug(value=False):
     :Parameters:: 
 
         value -- An if statement that should return True or false (hopefuly True)
-        \n\t Example: (value1 == value2)
-        \n\t Default: False
+        
+	    Example: (value1 == value2)
+        
+	    Default: False
 
     :Date:: 11/14/2017
     
@@ -760,7 +766,8 @@ def finishingTouches(outputfile="output.cfc"): # For writing files:
                 source = source.encode("ascii")
                 altmode = True
             except:
-                print("Error: minor encoding error while encoding file: %s\nIf this problem persists, please file an issue: https://github.com/TheCyaniteProject/firecoder/issues" % str(ex))
+                print("""Error: minor encoding error while encoding file: %s
+If this problem persists, please file an issue: https://github.com/TheCyaniteProject/firecoder/issues""" % str(ex))
                 print("File was not saved.")
             sys.exit(2)
     if altmode:
@@ -770,8 +777,10 @@ def finishingTouches(outputfile="output.cfc"): # For writing files:
     else:
         with open(outputfile, 'wb') as outFile:
             if args.e:
-                outFile.write(zlib.compress(source))
-                #outFile.write(source) # COMPRESSION-TEST
+                if args.compress: # COMPRESSION-TEST
+                    outFile.write(zlib.compress(source))
+                else:
+                    outFile.write(source)
             else:
                 outFile.write(bytes(source))
             debug(">Changes saved to: %s | w/ wb" % outputfile) # Print Debug info
