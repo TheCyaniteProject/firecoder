@@ -1,3 +1,5 @@
+### Note: This project is being rebuilt in C# here: https://github.com/TheCyaniteProject/Project-Ignite
+---
 ## Firecoder - Procedual Data Encryption
 
 Firecoder is a command-line app that uses a combination of procedural cyphers, and (optional) user-configurable encryption sequences, and custom (UTF-8) character ranges that the encryption can encode as.
