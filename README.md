@@ -1,4 +1,4 @@
-### Note: This project is being rebuilt in C# here: https://github.com/TheCyaniteProject/Project-Ignite
+### Note: This project is being rebuilt in C# here: https://github.com/TheCyaniteProject/CursePanda
 ---
 ## Firecoder - Procedual Data Encryption
 
